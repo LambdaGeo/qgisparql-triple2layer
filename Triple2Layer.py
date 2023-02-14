@@ -88,7 +88,7 @@ class Triple2Layer:
 
         # Declare instance attributes
         self.actions = []
-        self.menu = self.tr(u'&Triple2Layer')
+        self.menu = self.tr(u'&QGISSPARQL')
 
         # Check if plugin was started the first time in current QGIS session
         # Must be set in initGui() to survive plugin reloads
@@ -176,7 +176,7 @@ class Triple2Layer:
             self.iface.addToolBarIcon(action)
 
         if add_to_menu:
-            self.iface.addPluginToMenu(
+            self.iface.addPluginToVectorMenu(
                 self.menu,
                 action)
 
@@ -190,7 +190,7 @@ class Triple2Layer:
         icon_path = ':/plugins/Triple2Layer/icon.png'
         self.add_action(
             icon_path,
-            text=self.tr(u'this plugin imports data'),
+            text=self.tr(u'Triple2Layer'),
             callback=self.run,
             parent=self.iface.mainWindow())
 
@@ -201,8 +201,8 @@ class Triple2Layer:
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
         for action in self.actions:
-            self.iface.removePluginMenu(
-                self.tr(u'&Triple2Layer'),
+            self.iface.removePluginVectorMenu(
+                self.tr(u'&QGISSPARQL'),
                 action)
             self.iface.removeToolBarIcon(action)
 
