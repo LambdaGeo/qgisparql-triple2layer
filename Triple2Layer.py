@@ -23,7 +23,7 @@
 """
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, QVariant
 from qgis.PyQt.QtGui import QIcon
-from qgis.PyQt.QtWidgets import QAction, QComboBox, QCheckBox,QLineEdit, QTableWidgetItem, QFileDialog
+from qgis.PyQt.QtWidgets import QAction, QComboBox, QCheckBox,QLineEdit, QTableWidgetItem, QFileDialog, QInputDialog
 
 from qgis.core import QgsVectorLayer, QgsField, QgsGeometry, QgsFeature, QgsProject,  Qgis
 
@@ -49,6 +49,12 @@ try:
     from SPARQLWrapper import SPARQLWrapper, JSON, N3
 except:
     pip.main(['install', 'SPARQLWrapper'])
+
+
+try:
+    import datadotworld as dw
+except:
+    pip.main(['install', 'datadotworld[pandas]'])
 
 
 dic_attr_type = {
@@ -222,24 +228,32 @@ class Triple2Layer:
             
             self.dlg.buttonSPARQL.clicked.connect(self.open_sparql)
 
+            self.dlg.actionToken.triggered.connect(self.set_token)
+
         # show the dialog
         self.dlg.show()
         
         # Run the dialog event loop
+        '''
+        # comentado, main window nao tem exec_, preciso entender isso
         result = self.dlg.exec_()
         # See if OK was pressed
         if result:
             # Do something useful here - delete the line containing pass and
             # substitute with your code.
             pass
-
+        ''' 
 
     def execute (self):
-        #ds = dw.query('landchangedata/novoprojeto', s, query_type='sparql')
-        #table = ds.dataframe
-        #print (table)
         self.check_attributes()
         self.import_layer()
+
+    def set_token (self):
+        token, ok = QInputDialog.getText(self.dlg, "Data.World Token","Enter with token")
+        if(ok):
+             os.environ['DW_AUTH_TOKEN'] = token
+
+
 
     def check_attributes(self):
         #
@@ -269,23 +283,7 @@ class Triple2Layer:
         print (self.saveAttrs)      
         print (self.geo_column)          
 
-    def import_layer(self):
-
-        #ds = dw.query('landchangedata/novoprojeto', s, query_type='sparql')
-
-        # create layer
-        layer = QgsVectorLayer('Polygon?crs=epsg:4326?field='+self.id_column,self.dlg.lineLayer.text(),"memory")
-        pr = layer.dataProvider()
-        layer.startEditing()
-
-        attributes = [ QgsField (x[0], x[1] ) for x in  self.saveAttrs  ] # não funcionou com o map ???
-        
-        print (attributes)
-        pr.addAttributes(attributes)
-        layer.updateFields()
-        features = []
-
-
+    def import_from_triple(self, layer):
         sparql = SPARQLWrapper(self.dlg.lineEndpoint.text())
         sparql.setQuery(self.sparql)
         sparql.setReturnFormat(JSON)
@@ -312,6 +310,7 @@ class Triple2Layer:
 
             layer.commitChanges()
             QgsProject.instance().addMapLayer(layer)
+            
             self.iface.messageBar().pushMessage(
                 "Success", "Imported layer",
                 level=Qgis.Success, duration=3
@@ -321,7 +320,64 @@ class Triple2Layer:
                 "Error", "connection error to triple store",
                 level=Qgis.Success, duration=3
             )
-            
+
+    def import_from_dataworld(self, layer):
+    
+
+        ds = dw.query(self.dlg.lineEndpoint.text(), self.sparql, query_type='sparql')
+        df = ds.dataframe
+
+        
+        df = df.reset_index()  # make sure indexes pair with number of rows
+        features = []
+        i = 0
+        for index, row in df.iterrows():
+            fet = QgsFeature()
+            fet.setGeometry( QgsGeometry.fromWkt ( row[self.geo_column]) )
+            attrs = []
+            for attr in self.saveAttrs:
+                attrs.append(row[attr[2]])
+            fet.setAttributes(attrs)
+            features.append(fet)
+            i =+ 1
+        layer.addFeatures(features)
+        layer.updateExtents()
+
+
+        layer.commitChanges()
+        QgsProject.instance().addMapLayer(layer)
+
+
+        self.iface.messageBar().pushMessage(
+            "Success", "Imported layer",
+            level=Qgis.Success, duration=3
+        )
+
+    def import_layer(self):
+
+        #ds = dw.query('landchangedata/novoprojeto', s, query_type='sparql')
+
+        # create layer
+        layer = QgsVectorLayer('Polygon?crs=epsg:4326?field='+self.id_column,self.dlg.lineLayer.text(),"memory")
+        pr = layer.dataProvider()
+        layer.startEditing()
+
+        attributes = [ QgsField (x[0], x[1] ) for x in  self.saveAttrs  ] # não funcionou com o map ???
+        
+        print (attributes)
+        pr.addAttributes(attributes)
+        layer.updateFields()
+        features = []
+
+        source = self.dlg.comboSourceType.currentText()
+        if source == "Triple Store Endpoint":
+            self.import_from_triple(layer)
+        else:
+            self.import_from_dataworld(layer)
+
+
+  
+        
 
 
     def open_sparql (self):
