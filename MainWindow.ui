@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>Triple2Layer</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout">
@@ -167,12 +167,12 @@
     <property name="title">
      <string>Settings</string>
     </property>
-    <addaction name="actionToken_Dataworld"/>
+    <addaction name="actionToken"/>
    </widget>
    <addaction name="menuSettings"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
-  <action name="actionToken_Dataworld">
+  <action name="actionToken">
    <property name="text">
     <string>Token Dataworld</string>
    </property>

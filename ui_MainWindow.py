@@ -94,9 +94,9 @@ class Ui_MainWindow(object):
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
         self.statusbar.setObjectName("statusbar")
         MainWindow.setStatusBar(self.statusbar)
-        self.actionToken_Dataworld = QtWidgets.QAction(MainWindow)
-        self.actionToken_Dataworld.setObjectName("actionToken_Dataworld")
-        self.menuSettings.addAction(self.actionToken_Dataworld)
+        self.actionToken = QtWidgets.QAction(MainWindow)
+        self.actionToken.setObjectName("actionToken")
+        self.menuSettings.addAction(self.actionToken)
         self.menubar.addAction(self.menuSettings.menuAction())
 
         self.retranslateUi(MainWindow)
@@ -104,7 +104,7 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "Triple2Layer"))
         self.labelSPARQL.setText(_translate("MainWindow", "SPARQL File"))
         self.buttonSPARQL.setText(_translate("MainWindow", "..."))
         self.comboSourceType.setItemText(0, _translate("MainWindow", "Triple Store Endpoint"))
@@ -114,4 +114,4 @@ class Ui_MainWindow(object):
         self.lineLayer.setText(_translate("MainWindow", "layer_name"))
         self.atributos_2.setText(_translate("MainWindow", "Attributes"))
         self.menuSettings.setTitle(_translate("MainWindow", "Settings"))
-        self.actionToken_Dataworld.setText(_translate("MainWindow", "Token Dataworld"))
+        self.actionToken.setText(_translate("MainWindow", "Token Dataworld"))
