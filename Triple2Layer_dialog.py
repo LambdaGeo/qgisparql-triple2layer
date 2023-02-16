@@ -29,10 +29,10 @@ from qgis.PyQt import QtWidgets
 
 # This loads your .ui file so that PyQt can populate your plugin with the elements from Qt Designer
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
-    os.path.dirname(__file__), 'Triple2Layer_dialog_base.ui'))
+    os.path.dirname(__file__), 'MainWindow.ui'))
 
 
-class Triple2LayerDialog(QtWidgets.QDialog, FORM_CLASS):
+class Triple2LayerDialog(QtWidgets.QMainWindow, FORM_CLASS):
     def __init__(self, parent=None):
         """Constructor."""
         super(Triple2LayerDialog, self).__init__(parent)

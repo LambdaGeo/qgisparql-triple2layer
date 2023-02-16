@@ -226,13 +226,15 @@ class Triple2Layer:
         self.dlg.show()
         
         # Run the dialog event loop
+        '''
+        # comentado, main window nao tem exec_, preciso entender isso
         result = self.dlg.exec_()
         # See if OK was pressed
         if result:
             # Do something useful here - delete the line containing pass and
             # substitute with your code.
             pass
-
+        ''' 
 
     def execute (self):
         #ds = dw.query('landchangedata/novoprojeto', s, query_type='sparql')
@@ -269,23 +271,7 @@ class Triple2Layer:
         print (self.saveAttrs)      
         print (self.geo_column)          
 
-    def import_layer(self):
-
-        #ds = dw.query('landchangedata/novoprojeto', s, query_type='sparql')
-
-        # create layer
-        layer = QgsVectorLayer('Polygon?crs=epsg:4326?field='+self.id_column,self.dlg.lineLayer.text(),"memory")
-        pr = layer.dataProvider()
-        layer.startEditing()
-
-        attributes = [ QgsField (x[0], x[1] ) for x in  self.saveAttrs  ] # não funcionou com o map ???
-        
-        print (attributes)
-        pr.addAttributes(attributes)
-        layer.updateFields()
-        features = []
-
-
+    def import_from_triple(self, layer):
         sparql = SPARQLWrapper(self.dlg.lineEndpoint.text())
         sparql.setQuery(self.sparql)
         sparql.setReturnFormat(JSON)
@@ -312,6 +298,7 @@ class Triple2Layer:
 
             layer.commitChanges()
             QgsProject.instance().addMapLayer(layer)
+            
             self.iface.messageBar().pushMessage(
                 "Success", "Imported layer",
                 level=Qgis.Success, duration=3
@@ -321,6 +308,29 @@ class Triple2Layer:
                 "Error", "connection error to triple store",
                 level=Qgis.Success, duration=3
             )
+
+    def import_layer(self):
+
+        #ds = dw.query('landchangedata/novoprojeto', s, query_type='sparql')
+
+        # create layer
+        layer = QgsVectorLayer('Polygon?crs=epsg:4326?field='+self.id_column,self.dlg.lineLayer.text(),"memory")
+        pr = layer.dataProvider()
+        layer.startEditing()
+
+        attributes = [ QgsField (x[0], x[1] ) for x in  self.saveAttrs  ] # não funcionou com o map ???
+        
+        print (attributes)
+        pr.addAttributes(attributes)
+        layer.updateFields()
+        features = []
+
+        source = self.dlg.comboSourceType.currentText()
+        if source == "Triple Store Endpoint":
+            self.import_from_triple(layer)
+
+
+  
             
 
 
