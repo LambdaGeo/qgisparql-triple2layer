@@ -54,7 +54,9 @@ except:
 try:
     import datadotworld as dw
 except:
-    pip.main(['install', 'datadotworld[pandas]'])
+    #subprocess.check_call([sys.executable, '-m', 'pip', 'install','datadotworld[pandas]'])
+    pip.main(['install', 'datadotworld[pandas]','pip'])
+    import datadotworld as dw
 
 
 dic_attr_type = {
@@ -245,16 +247,18 @@ class Triple2Layer:
         ''' 
 
     def execute (self):
-        self.check_attributes()
-        self.import_layer()
+       
+            self.check_attributes()
+            self.import_layer()
+       
 
     def set_token (self):
+        
         token, ok = QInputDialog.getText(self.dlg, "Data.World Token","Enter with token")
-        if(ok):
-             os.environ['DW_AUTH_TOKEN'] = token
-
-
-
+        if(ok and token!= ""):
+            os.environ['DW_AUTH_TOKEN'] = token
+            
+           
     def check_attributes(self):
         #
         self.geo_column = ""
@@ -322,36 +326,54 @@ class Triple2Layer:
             )
 
     def import_from_dataworld(self, layer):
-    
-
-        ds = dw.query(self.dlg.lineEndpoint.text(), self.sparql, query_type='sparql')
-        df = ds.dataframe
-
         
-        df = df.reset_index()  # make sure indexes pair with number of rows
-        features = []
-        i = 0
-        for index, row in df.iterrows():
-            fet = QgsFeature()
-            fet.setGeometry( QgsGeometry.fromWkt ( row[self.geo_column]) )
-            attrs = []
-            for attr in self.saveAttrs:
-                attrs.append(row[attr[2]])
-            fet.setAttributes(attrs)
-            features.append(fet)
-            i =+ 1
-        layer.addFeatures(features)
-        layer.updateExtents()
+        if "DW_AUTH_TOKEN" not in os.environ:
+            self.iface.messageBar().pushMessage(
+                "Error", "Token not defined",
+                level=Qgis.Success, duration=3
+            )
+            self.set_token()
+        else:
+
+            try:
+                ds = dw.query(self.dlg.lineEndpoint.text(), self.sparql, query_type='sparql')
+                df = ds.dataframe
 
 
-        layer.commitChanges()
-        QgsProject.instance().addMapLayer(layer)
+            
+                df = df.reset_index()  # make sure indexes pair with number of rows
+                features = []
+                i = 0
+            
+                for index, row in df.iterrows():
+                    fet = QgsFeature()
+                    fet.setGeometry( QgsGeometry.fromWkt ( row[self.geo_column]) )
+                    attrs = []
+                    for attr in self.saveAttrs:
+                        attrs.append(row[attr[2]])
+                    fet.setAttributes(attrs)
+                    features.append(fet)
+                    i =+ 1
+                layer.addFeatures(features)
+                layer.updateExtents()
 
 
-        self.iface.messageBar().pushMessage(
-            "Success", "Imported layer",
-            level=Qgis.Success, duration=3
-        )
+                layer.commitChanges()
+                QgsProject.instance().addMapLayer(layer)
+
+
+                self.iface.messageBar().pushMessage(
+                    "Success", "Imported layer",
+                    level=Qgis.Success, duration=3
+                )
+            except:
+                self.iface.messageBar().pushMessage(
+                    "Error", "access token is required",
+                    level=Qgis.Success, duration=3
+                )
+    
+        
+
 
     def import_layer(self):
 
@@ -376,9 +398,6 @@ class Triple2Layer:
             self.import_from_dataworld(layer)
 
 
-  
-        
-
 
     def open_sparql (self):
         
@@ -391,6 +410,7 @@ class Triple2Layer:
                 self.fill_table(data)
         except:
             return
+
 
     def fill_table(self, s): 
 
