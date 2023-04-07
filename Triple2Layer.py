@@ -44,18 +44,25 @@ except:
     import pip
     # just in case the included version is old
     pip.main(['install','--upgrade','pip'])
+    #pip.main(['install','--upgrade','!pip'])
 
 try:
     from SPARQLWrapper import SPARQLWrapper, JSON, N3
 except:
-    pip.main(['install', 'SPARQLWrapper'])
+    pip.main(['install', 'SPARQLWrapper','pip'])
+    '''import sys
+    import subprocess
+    subprocess.check_call([sys.executable, '-m', 'pip', 'SPARQLWrapper'])'''
 
 
 try:
     import datadotworld as dw
 except:
-    #subprocess.check_call([sys.executable, '-m', 'pip', 'install','datadotworld[pandas]'])
     pip.main(['install', 'datadotworld[pandas]','pip'])
+    '''import sys
+    import subprocess
+    subprocess.check_call([sys.executable, '-m', 'pip', 'datadotworld[pandas]'])'''
+    #pip.main(['install', 'datadotworld[pandas]','!pip'])
     import datadotworld as dw
 
 
