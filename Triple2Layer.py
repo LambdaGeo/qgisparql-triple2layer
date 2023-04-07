@@ -224,6 +224,8 @@ class Triple2Layer:
             self.first_start = False
             self.dlg = Triple2LayerDialog()
             
+            self.file_name=None
+            
             self.dlg.button_box.accepted.connect(self.execute)
             
             self.dlg.button_box.rejected.connect(self.close)
@@ -246,11 +248,9 @@ class Triple2Layer:
             pass
         ''' 
 
-    def execute (self):
-       
+    def execute (self):  
             self.check_attributes()
             self.import_layer()
-       
 
     def set_token (self):
         
@@ -322,15 +322,15 @@ class Triple2Layer:
         except:
             self.iface.messageBar().pushMessage(
                 "Error", "connection error to triple store",
-                level=Qgis.Success, duration=3
+                level=Qgis.Critical, duration=3
             )
 
     def import_from_dataworld(self, layer):
         
         if "DW_AUTH_TOKEN" not in os.environ:
             self.iface.messageBar().pushMessage(
-                "Error", "Token not defined",
-                level=Qgis.Success, duration=3
+                "Ooops", "Token not defined",
+                level=Qgis.Info, duration=3
             )
             self.set_token()
         else:
@@ -369,40 +369,52 @@ class Triple2Layer:
             except:
                 self.iface.messageBar().pushMessage(
                     "Error", "access token is required",
-                    level=Qgis.Success, duration=3
+                    level=Qgis.Warning, duration=3
                 )
-    
-        
-
 
     def import_layer(self):
 
         #ds = dw.query('landchangedata/novoprojeto', s, query_type='sparql')
 
         # create layer
-        layer = QgsVectorLayer('Polygon?crs=epsg:4326?field='+self.id_column,self.dlg.lineLayer.text(),"memory")
-        pr = layer.dataProvider()
-        layer.startEditing()
+        try:
+            layer = QgsVectorLayer('Polygon?crs=epsg:4326?field='+self.id_column,self.dlg.lineLayer.text(),"memory")
+            
+            pr = layer.dataProvider()
+            layer.startEditing()
+            
+                
+            attributes = [ QgsField (x[0], x[1] ) for x in  self.saveAttrs  ] # não funcionou com o map ???
+                    
+            print (attributes)
+            pr.addAttributes(attributes)
+            layer.updateFields()
+            features = []
+            
 
-        attributes = [ QgsField (x[0], x[1] ) for x in  self.saveAttrs  ] # não funcionou com o map ???
+            source = self.dlg.comboSourceType.currentText()
+            
+            if source == "Triple Store Endpoint":
+                self.import_from_triple(layer)
+            else:
+                self.import_from_dataworld(layer)
+        except:
+            
+            if not self.file_name:
+                self.iface.messageBar().pushMessage(
+                "Ooops", "upload a SPARQL file",
+                level=Qgis.Info, duration=3)
+                self.open_sparql()
+            else:
+                self.iface.messageBar().pushMessage(
+                "Ooops", "no attributes selected",
+                level=Qgis.Info, duration=3)
         
-        print (attributes)
-        pr.addAttributes(attributes)
-        layer.updateFields()
-        features = []
-
-        source = self.dlg.comboSourceType.currentText()
-        if source == "Triple Store Endpoint":
-            self.import_from_triple(layer)
-        else:
-            self.import_from_dataworld(layer)
-
-
-
+                              
     def open_sparql (self):
-        
         self.file_name=str(QFileDialog.getOpenFileName(caption="Defining input file", filter="SPARQL(*.sparql)")[0])
         self.dlg.lineSPARQL.setText(self.file_name)
+        
         try: 
             with open(self.file_name, 'r') as file:
                 data = file.read()
