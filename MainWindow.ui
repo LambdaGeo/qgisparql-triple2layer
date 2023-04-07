@@ -70,7 +70,7 @@
         <item>
          <widget class="QLineEdit" name="lineEndpoint">
           <property name="text">
-           <string>https://api.triplydb.com/datasets/sergiocosta/dbcells/services/dbcells/sparql</string>
+           <string>https://api.triplydb.com/datasets/nervalJunior/dbcells/services/dbcells/sparql</string>
           </property>
          </widget>
         </item>
@@ -160,7 +160,7 @@
      <x>0</x>
      <y>0</y>
      <width>594</width>
-     <height>22</height>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuSettings">
