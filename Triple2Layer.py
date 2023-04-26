@@ -24,7 +24,7 @@
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, QVariant
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction, QComboBox, QCheckBox,QLineEdit, QTableWidgetItem, QFileDialog, QInputDialog
-
+from PyQt5.QtCore import QTimer
 from qgis.core import QgsVectorLayer, QgsField, QgsGeometry, QgsFeature, QgsProject,  Qgis
 
 # Initialize Qt resources from file resources.py
@@ -233,6 +233,8 @@ class Triple2Layer:
             
             self.file_name=None
             
+            self.dlg.pushButton.clicked.connect(self.execute)
+            
             self.dlg.button_box.accepted.connect(self.execute)
             
             self.dlg.button_box.rejected.connect(self.close)
@@ -298,17 +300,17 @@ class Triple2Layer:
         sparql = SPARQLWrapper(self.dlg.lineEndpoint.text())
         sparql.setQuery(self.sparql)
         sparql.setReturnFormat(JSON)
-        
+
         try:
             results = sparql.query().convert()
-        
+
             features = []
             i = 0
             for row in results["results"]["bindings"]:
                 fet = QgsFeature()
                 fet.setGeometry( QgsGeometry.fromWkt ( row[self.geo_column]["value"]) )
                 attrs = []
-                
+
                 for attr in self.saveAttrs:
                     print (attr)
                     attrs.append(row[attr[2]]["value"])
@@ -322,15 +324,24 @@ class Triple2Layer:
             layer.commitChanges()
             QgsProject.instance().addMapLayer(layer)
             
+            self.dlg.close()
+            
             self.iface.messageBar().pushMessage(
-                "Success", "Imported layer",
-                level=Qgis.Success, duration=3
-            )
+                "Success", "doing import layer",
+                level=Qgis.Success, duration=3   
+            )       
+            timer = QTimer()
+            timer.start(2000)
+            self.iface.messageBar().pushMessage(
+            "Success", "Imported layer",
+            level=Qgis.Success, duration=3)  
+            
         except:
             self.iface.messageBar().pushMessage(
-                "Error", "connection error to triple store",
-                level=Qgis.Critical, duration=3
+                "Error", "access token is required",
+                level=Qgis.Warning, duration=3
             )
+
 
     def import_from_dataworld(self, layer):
         
@@ -367,17 +378,26 @@ class Triple2Layer:
 
                 layer.commitChanges()
                 QgsProject.instance().addMapLayer(layer)
-
-
+                
+                self.dlg.close()
+            
                 self.iface.messageBar().pushMessage(
-                    "Success", "Imported layer",
-                    level=Qgis.Success, duration=3
-                )
+                    "Success", "doing import layer",
+                    level=Qgis.Success, duration=3   
+                )  
+                timer = QTimer()
+                timer.start(2000) # Wait 2 seconds
+                self.iface.messageBar().pushMessage(
+                "Success", "Imported layer",
+                level=Qgis.Success, duration=3)  
+                
             except:
                 self.iface.messageBar().pushMessage(
                     "Error", "access token is required",
                     level=Qgis.Warning, duration=3
                 )
+
+     
 
     def import_layer(self):
 
