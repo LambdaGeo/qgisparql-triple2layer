@@ -73,7 +73,7 @@
         <item>
          <widget class="QLineEdit" name="lineEndpoint">
           <property name="text">
-           <string>https://api.triplydb.com/datasets/nervalJunior/dbcells/services/dbcells/sparql</string>
+           <string/>
           </property>
          </widget>
         </item>
