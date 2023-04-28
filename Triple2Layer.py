@@ -23,8 +23,9 @@
 """
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, QVariant
 from qgis.PyQt.QtGui import QIcon
+from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QProgressDialog
 from qgis.PyQt.QtWidgets import QAction, QComboBox, QCheckBox,QLineEdit, QTableWidgetItem, QFileDialog, QInputDialog
-from PyQt5.QtCore import QTimer
 from qgis.core import QgsVectorLayer, QgsField, QgsGeometry, QgsFeature, QgsProject,  Qgis
 
 # Initialize Qt resources from file resources.py
@@ -235,8 +236,6 @@ class Triple2Layer:
             
             self.dlg.pushButton.clicked.connect(self.execute)
             
-            self.dlg.button_box.accepted.connect(self.execute)
-            
             self.dlg.button_box.rejected.connect(self.close)
             
             self.dlg.buttonSPARQL.clicked.connect(self.open_sparql)
@@ -294,56 +293,9 @@ class Triple2Layer:
                 self.saveAttrs.append((attr_name, dic_attr_type[combo_type.currentText()], var_name ))
         
         print (self.saveAttrs)      
-        print (self.geo_column)          
-
-    def import_from_triple(self, layer):
-        sparql = SPARQLWrapper(self.dlg.lineEndpoint.text())
-        sparql.setQuery(self.sparql)
-        sparql.setReturnFormat(JSON)
-
-        try:
-            results = sparql.query().convert()
-
-            features = []
-            i = 0
-            for row in results["results"]["bindings"]:
-                fet = QgsFeature()
-                fet.setGeometry( QgsGeometry.fromWkt ( row[self.geo_column]["value"]) )
-                attrs = []
-
-                for attr in self.saveAttrs:
-                    print (attr)
-                    attrs.append(row[attr[2]]["value"])
-                fet.setAttributes(attrs)
-                features.append(fet)
-                i =+ 1
-            layer.addFeatures(features)
-            layer.updateExtents()
-
-
-            layer.commitChanges()
-            QgsProject.instance().addMapLayer(layer)
-            
-            self.dlg.close()
-            
-            self.iface.messageBar().pushMessage(
-                "Success", "doing import layer",
-                level=Qgis.Success, duration=3   
-            )       
-            timer = QTimer()
-            timer.start(2000)
-            self.iface.messageBar().pushMessage(
-            "Success", "Imported layer",
-            level=Qgis.Success, duration=3)  
-            
-        except:
-            self.iface.messageBar().pushMessage(
-                "Error", "connection fail to triple store",
-                level=Qgis.Warning, duration=3
-            )
-
-
-    def import_from_dataworld(self, layer):
+        print (self.geo_column)  
+        
+    def import_from_dataworld(self, layer, progressDialog):
         
         if "DW_AUTH_TOKEN" not in os.environ:
             self.iface.messageBar().pushMessage(
@@ -358,73 +310,126 @@ class Triple2Layer:
                 df = ds.dataframe
 
 
-            
                 df = df.reset_index()  # make sure indexes pair with number of rows
                 features = []
                 i = 0
+                total = len(df)
+                
+                progressDialog.setWindowTitle("Importing layer")
+                progressDialog.setLabelText("Importing features...")
+                progressDialog.setMaximum(total)
+                progressDialog.setValue(0)
+                progressDialog.show()
             
                 for index, row in df.iterrows():
                     fet = QgsFeature()
-                    fet.setGeometry( QgsGeometry.fromWkt ( row[self.geo_column]) )
+                    fet.setGeometry(QgsGeometry.fromWkt(row[self.geo_column]))
                     attrs = []
                     for attr in self.saveAttrs:
                         attrs.append(row[attr[2]])
                     fet.setAttributes(attrs)
                     features.append(fet)
-                    i =+ 1
+                    i += 1
+                    progressDialog.setValue(i)
+                    progressDialog.setLabelText("Importing feature {} of {}".format(i, total))
+                    QCoreApplication.processEvents() 
+                        
                 layer.addFeatures(features)
                 layer.updateExtents()
-
-
                 layer.commitChanges()
                 QgsProject.instance().addMapLayer(layer)
-                
-                self.dlg.close()
-            
-                self.iface.messageBar().pushMessage(
-                    "Success", "doing import layer",
-                    level=Qgis.Success, duration=3   
-                )  
-                timer = QTimer()
-                timer.start(2000) # Wait 2 seconds
+
+                progressDialog.close()                 
+
                 self.iface.messageBar().pushMessage(
                 "Success", "Imported layer",
-                level=Qgis.Success, duration=3)  
-                
+                level=Qgis.Success, duration=3) 
+                self.dlg.close()
+
             except:
                 self.iface.messageBar().pushMessage(
                     "Error", "connection fail to dataworld",
                     level=Qgis.Warning, duration=3
                 )
+        
 
-     
+    def import_from_triple(self, layer, progressDialog):
+        sparql = SPARQLWrapper(self.dlg.lineEndpoint.text())
+        sparql.setQuery(self.sparql)
+        sparql.setReturnFormat(JSON)
 
+        try:
+            results = sparql.query().convert()
+
+            features = []
+            i = 0
+            
+            progressDialog.setWindowTitle("Importing layer")
+            progressDialog.setLabelText("Importing features...")
+            progressDialog.setMaximum(len(results["results"]["bindings"]))
+            progressDialog.setValue(0)
+            progressDialog.show()
+
+            for row in results["results"]["bindings"]:
+                fet = QgsFeature()
+                fet.setGeometry(QgsGeometry.fromWkt(row[self.geo_column]["value"]))
+                attrs = []
+                for attr in self.saveAttrs:
+                    attrs.append(row[attr[2]]["value"])
+                fet.setAttributes(attrs)
+                features.append(fet)
+                i += 1
+                progressDialog.setValue(i)
+                QCoreApplication.processEvents()
+
+            layer.addFeatures(features)
+            layer.updateExtents()
+            layer.commitChanges()
+            QgsProject.instance().addMapLayer(layer)
+
+            progressDialog.close() 
+                
+            self.iface.messageBar().pushMessage(
+                "Success", "Imported layer",
+                level=Qgis.Success, duration=3
+            )
+            self.dlg.close()
+
+        except:
+            progressDialog.close()
+            self.iface.messageBar().pushMessage(
+                "Error", "connection fail to triple store",
+                level=Qgis.Warning, duration=3
+            )
+
+                
     def import_layer(self):
 
         #ds = dw.query('landchangedata/novoprojeto', s, query_type='sparql')
-
         # create layer
         try:
             layer = QgsVectorLayer('Polygon?crs=epsg:4326?field='+self.id_column,self.dlg.lineLayer.text(),"memory")
-            
             pr = layer.dataProvider()
-            layer.startEditing()
-            
-                
+            layer.startEditing()    
             attributes = [ QgsField (x[0], x[1] ) for x in  self.saveAttrs  ] # não funcionou com o map ???
-                    
-            print (attributes)
             pr.addAttributes(attributes)
             layer.updateFields()
+            
             features = []
             
+            progressDialog = QProgressDialog("Importing layer...", "Cancel", 0, 0, self.iface.mainWindow())
+            progressDialog.setWindowTitle("Importing layer")
+            progressDialog.setWindowModality(Qt.WindowModal)
+            progressDialog.show()
 
             source = self.dlg.comboSourceType.currentText()
-            
+                        
             if source == "Triple Store Endpoint":
-                self.import_from_triple(layer)
+                self.import_from_triple(layer,progressDialog)
             else:
-                self.import_from_dataworld(layer)
+                self.import_from_dataworld(layer,progressDialog)
+              
+            progressDialog.close() 
         except:
             
             if not self.file_name:
