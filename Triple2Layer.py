@@ -338,7 +338,7 @@ class Triple2Layer:
             
         except:
             self.iface.messageBar().pushMessage(
-                "Error", "access token is required",
+                "Error", "connection fail to triple store",
                 level=Qgis.Warning, duration=3
             )
 
@@ -393,7 +393,7 @@ class Triple2Layer:
                 
             except:
                 self.iface.messageBar().pushMessage(
-                    "Error", "access token is required",
+                    "Error", "connection fail to dataworld",
                     level=Qgis.Warning, duration=3
                 )
 
