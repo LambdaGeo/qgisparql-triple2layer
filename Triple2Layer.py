@@ -33,7 +33,7 @@ from .resources import *
 # Import the code for the dialog
 from .Triple2Layer_dialog import Triple2LayerDialog
 import os.path
-
+import json
 import os
 
 plugin_dir = os.path.dirname(__file__)
@@ -71,9 +71,11 @@ dic_attr_type = {
     "String": QVariant.String,
     "Int": QVariant.Int,
     "Double": QVariant.Double,
-
 }
 
+
+path_plugin = os.path.dirname(__file__)
+path_file = os.path.join(path_plugin, "endpoint.json")
 
 class Triple2Layer:
     """QGIS Plugin Implementation."""
@@ -101,8 +103,7 @@ class Triple2Layer:
             self.translator = QTranslator()
             self.translator.load(locale_path)
             QCoreApplication.installTranslator(self.translator)
-
-        # Declare instance attributes
+   
         self.actions = []
         self.menu = self.tr(u'&QGISSPARQL')
 
@@ -234,6 +235,8 @@ class Triple2Layer:
             
             self.file_name=None
             
+            self.sentence_endpoint_defaut()
+            
             self.dlg.pushButton.clicked.connect(self.execute)
             
             self.dlg.button_box.rejected.connect(self.close)
@@ -258,8 +261,10 @@ class Triple2Layer:
 
     def execute (self):  
             self.check_attributes()
+            self.sentence_endpoint()
+            self.sentence_endpoint_defaut()
             self.import_layer()
-
+            
     def set_token (self):
         
         token, ok = QInputDialog.getText(self.dlg, "Data.World Token","Enter with token")
@@ -294,7 +299,7 @@ class Triple2Layer:
         
         print (self.saveAttrs)      
         print (self.geo_column)  
-        
+            
     def import_from_dataworld(self, layer, progressDialog):
         
         if "DW_AUTH_TOKEN" not in os.environ:
@@ -351,8 +356,30 @@ class Triple2Layer:
                     "Error", "connection fail to dataworld",
                     level=Qgis.Warning, duration=3
                 )
-        
-
+    def sentence_endpoint(self):
+        caminho=self.buscapath()
+        source = self.dlg.comboSourceType.currentText()    
+        with open(caminho, "r") as arquivo:
+            linhas = json.load(arquivo)       
+        novo_texto = self.dlg.lineEndpoint.text()
+        linhas[source] = novo_texto
+        with open(caminho, "w") as arquivo:
+            json.dump(linhas,arquivo) 
+                 
+    def sentence_endpoint_defaut(self):
+        caminho=self.buscapath()
+        source = self.dlg.comboSourceType.currentText()  
+          
+        with open(caminho, "r") as arquivo:
+            linhas = json.load(arquivo)    
+        ultima_linha = linhas[source]
+        self.dlg.lineEndpoint.setText(ultima_linha)
+    
+    def buscapath(self):
+        path_plugin = os.path.dirname(__file__)
+        path_file = os.path.join(path_plugin, "endpoint.json")
+        return path_file
+                    
     def import_from_triple(self, layer, progressDialog):
         sparql = SPARQLWrapper(self.dlg.lineEndpoint.text())
         sparql.setQuery(self.sparql)
@@ -401,8 +428,7 @@ class Triple2Layer:
                 "Error", "connection fail to triple store",
                 level=Qgis.Warning, duration=3
             )
-
-                
+          
     def import_layer(self):
 
         #ds = dw.query('landchangedata/novoprojeto', s, query_type='sparql')
@@ -441,8 +467,7 @@ class Triple2Layer:
                 self.iface.messageBar().pushMessage(
                 "Ooops", "no attributes selected",
                 level=Qgis.Info, duration=3)
-        
-                              
+                                 
     def open_sparql (self):
         self.file_name=str(QFileDialog.getOpenFileName(caption="Defining input file", filter="SPARQL(*.sparql)")[0])
         self.dlg.lineSPARQL.setText(self.file_name)
@@ -454,7 +479,6 @@ class Triple2Layer:
                 self.fill_table(data)
         except:
             return
-
 
     def fill_table(self, s): 
 
@@ -485,8 +509,7 @@ class Triple2Layer:
             comboBox.addItem("Double")
             self.dlg.tableAttributes.setCellWidget(start, 5, comboBox)
             start += 1
-            
-        
+             
     def close(self):
         self.dlg.setVisible(False)
 
