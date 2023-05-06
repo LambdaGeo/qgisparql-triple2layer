@@ -245,6 +245,8 @@ class Triple2Layer:
 
             self.dlg.actionToken.triggered.connect(self.set_token)
 
+            self.dlg.comboSourceType.textActivated.connect(self.sentence_endpoint_defaut)
+
         # show the dialog
         self.dlg.show()
         
