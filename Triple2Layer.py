@@ -26,7 +26,7 @@ from qgis.PyQt.QtGui import QIcon
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QProgressDialog
 from qgis.PyQt.QtWidgets import QAction, QComboBox, QCheckBox,QLineEdit, QTableWidgetItem, QFileDialog, QInputDialog
-from qgis.core import QgsVectorLayer, QgsField, QgsGeometry, QgsFeature, QgsProject,  Qgis
+from qgis.core import QgsVectorLayer, QgsField, QgsGeometry, QgsFeature, QgsProject,  Qgis, QgsTask, QgsTaskManager, QgsApplication, QgsMessageLog
 
 # Initialize Qt resources from file resources.py
 from .resources import *
@@ -35,6 +35,8 @@ from .Triple2Layer_dialog import Triple2LayerDialog
 import os.path
 import json
 import os
+
+from functools import partial
 
 plugin_dir = os.path.dirname(__file__)
 
@@ -245,6 +247,8 @@ class Triple2Layer:
 
             self.dlg.actionToken.triggered.connect(self.set_token)
 
+            self.dlg.comboSourceType.textActivated.connect(self.sentence_endpoint_defaut)
+
         # show the dialog
         self.dlg.show()
         
@@ -299,19 +303,16 @@ class Triple2Layer:
         
         print (self.saveAttrs)      
         print (self.geo_column)  
-            
-    def import_from_dataworld(self, layer, progressDialog):
-        
-        if "DW_AUTH_TOKEN" not in os.environ:
-            self.iface.messageBar().pushMessage(
-                "Ooops", "Token not defined",
-                level=Qgis.Info, duration=3
-            )
-            self.set_token()
-        else:
 
-            try:
-                ds = dw.query(self.dlg.lineEndpoint.text(), self.sparql, query_type='sparql')
+    def load_data_world(self, time):
+        QgsMessageLog.logMessage('A tarefa já está em execução.', 'MeuPlugin')
+
+        ds = dw.query(self.dlg.lineEndpoint.text(), self.sparql, query_type='sparql')
+        return ds
+
+ 
+    def update_layer(self, layer, progressDialog, time, ds):
+                QgsMessageLog.logMessage('A tarefa já está concluindo. '+str(time), 'MeuPlugin')
                 df = ds.dataframe
 
 
@@ -350,12 +351,34 @@ class Triple2Layer:
                 "Success", "Imported layer",
                 level=Qgis.Success, duration=3) 
                 self.dlg.close()
+            
+    def import_from_dataworld(self, layer, progressDialog):
+        
+        if "DW_AUTH_TOKEN" not in os.environ:
+            self.iface.messageBar().pushMessage(
+                "Ooops", "Token not defined",
+                level=Qgis.Info, duration=3
+            )
+            self.set_token()
+        else:
 
-            except:
+            #try:
                 self.iface.messageBar().pushMessage(
-                    "Error", "connection fail to dataworld",
-                    level=Qgis.Warning, duration=3
-                )
+                "Success", "Importing a layer",
+                level=Qgis.Success, duration=10)
+                QgsMessageLog.logMessage('criarndo tarefa.', 'MeuPlugin')    
+                self.task = QgsTask.fromFunction('Minha Tarefa',self.load_data_world, on_finished= partial (self.update_layer, layer,progressDialog))
+                self.task.taskCompleted.connect(self.iface.messageBar().clearWidgets)
+                #task.finished.connect(partial(self.segundo_metodo, layer, progressDialog))
+                #task.finished.connect(self.terminou)
+                QgsApplication.taskManager().addTask(self.task)
+             
+
+            #except:
+             #   self.iface.messageBar().pushMessage(
+              #      "Error", "connection fail to dataworld",
+               #     level=Qgis.Warning, duration=3
+               # )
     def sentence_endpoint(self):
         caminho=self.buscapath()
         source = self.dlg.comboSourceType.currentText()    
@@ -433,7 +456,7 @@ class Triple2Layer:
 
         #ds = dw.query('landchangedata/novoprojeto', s, query_type='sparql')
         # create layer
-        try:
+        #try:
             layer = QgsVectorLayer('Polygon?crs=epsg:4326?field='+self.id_column,self.dlg.lineLayer.text(),"memory")
             pr = layer.dataProvider()
             layer.startEditing()    
@@ -456,8 +479,8 @@ class Triple2Layer:
                 self.import_from_dataworld(layer,progressDialog)
               
             progressDialog.close() 
-        except:
-            
+        #except:
+            '''
             if not self.file_name:
                 self.iface.messageBar().pushMessage(
                 "Ooops", "upload a SPARQL file",
@@ -467,7 +490,7 @@ class Triple2Layer:
                 self.iface.messageBar().pushMessage(
                 "Ooops", "no attributes selected",
                 level=Qgis.Info, duration=3)
-                                 
+            '''                        
     def open_sparql (self):
         self.file_name=str(QFileDialog.getOpenFileName(caption="Defining input file", filter="SPARQL(*.sparql)")[0])
         self.dlg.lineSPARQL.setText(self.file_name)
