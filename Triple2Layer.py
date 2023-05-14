@@ -25,7 +25,7 @@ from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, QVariant
 from qgis.PyQt.QtGui import QIcon
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QProgressDialog
-from qgis.PyQt.QtWidgets import QAction, QComboBox, QCheckBox,QLineEdit, QTableWidgetItem, QFileDialog, QInputDialog
+from qgis.PyQt.QtWidgets import QAction, QComboBox, QCheckBox, QLineEdit, QTableWidgetItem, QFileDialog, QInputDialog
 from qgis.core import QgsVectorLayer, QgsField, QgsGeometry, QgsFeature, QgsProject,  Qgis, QgsTask, QgsTaskManager, QgsApplication, QgsMessageLog
 
 # Initialize Qt resources from file resources.py
@@ -46,13 +46,13 @@ except:
     exec(open(os.path.join(plugin_dir, "get_pip.py")).read())
     import pip
     # just in case the included version is old
-    pip.main(['install','--upgrade','pip'])
-    #pip.main(['install','--upgrade','!pip'])
+    pip.main(['install', '--upgrade', 'pip'])
+    # pip.main(['install','--upgrade','!pip'])
 
 try:
     from SPARQLWrapper import SPARQLWrapper, JSON, N3
 except:
-    pip.main(['install', 'SPARQLWrapper','pip'])
+    pip.main(['install', 'SPARQLWrapper', 'pip'])
     '''import sys
     import subprocess
     subprocess.check_call([sys.executable, '-m', 'pip', 'SPARQLWrapper'])'''
@@ -61,11 +61,11 @@ except:
 try:
     import datadotworld as dw
 except:
-    pip.main(['install', 'datadotworld[pandas]','pip'])
+    pip.main(['install', 'datadotworld[pandas]', 'pip'])
     '''import sys
     import subprocess
     subprocess.check_call([sys.executable, '-m', 'pip', 'datadotworld[pandas]'])'''
-    #pip.main(['install', 'datadotworld[pandas]','!pip'])
+    # pip.main(['install', 'datadotworld[pandas]','!pip'])
     import datadotworld as dw
 
 
@@ -79,17 +79,11 @@ dic_attr_type = {
 path_plugin = os.path.dirname(__file__)
 path_file = os.path.join(path_plugin, "endpoint.json")
 
+
 class Triple2Layer:
     """QGIS Plugin Implementation."""
 
     def __init__(self, iface):
-        """Constructor.
-
-        :param iface: An interface instance that will be passed to this class
-            which provides the hook by which you can manipulate the QGIS
-            application at run time.
-        :type iface: QgsInterface
-        """
         # Save reference to the QGIS interface
         self.iface = iface
         # initialize plugin directory
@@ -105,7 +99,7 @@ class Triple2Layer:
             self.translator = QTranslator()
             self.translator.load(locale_path)
             QCoreApplication.installTranslator(self.translator)
-   
+
         self.actions = []
         self.menu = self.tr(u'&QGISSPARQL')
 
@@ -115,69 +109,20 @@ class Triple2Layer:
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
-        """Get the translation for a string using Qt translation API.
-
-        We implement this ourselves since we do not inherit QObject.
-
-        :param message: String for translation.
-        :type message: str, QString
-
-        :returns: Translated version of message.
-        :rtype: QString
-        """
         # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
         return QCoreApplication.translate('Triple2Layer', message)
 
-
     def add_action(
-        self,
-        icon_path,
-        text,
-        callback,
-        enabled_flag=True,
-        add_to_menu=True,
-        add_to_toolbar=True,
-        status_tip=None,
-        whats_this=None,
-        parent=None):
-        """Add a toolbar icon to the toolbar.
-
-        :param icon_path: Path to the icon for this action. Can be a resource
-            path (e.g. ':/plugins/foo/bar.png') or a normal file system path.
-        :type icon_path: str
-
-        :param text: Text that should be shown in menu items for this action.
-        :type text: str
-
-        :param callback: Function to be called when the action is triggered.
-        :type callback: function
-
-        :param enabled_flag: A flag indicating if the action should be enabled
-            by default. Defaults to True.
-        :type enabled_flag: bool
-
-        :param add_to_menu: Flag indicating whether the action should also
-            be added to the menu. Defaults to True.
-        :type add_to_menu: bool
-
-        :param add_to_toolbar: Flag indicating whether the action should also
-            be added to the toolbar. Defaults to True.
-        :type add_to_toolbar: bool
-
-        :param status_tip: Optional text to show in a popup when mouse pointer
-            hovers over the action.
-        :type status_tip: str
-
-        :param parent: Parent widget for the new action. Defaults None.
-        :type parent: QWidget
-
-        :param whats_this: Optional text to show in the status bar when the
-            mouse pointer hovers over the action.
-
-        :returns: The action that was created. Note that the action is also
-            added to self.actions list.
-        :rtype: QAction
-        """
+            self,
+            icon_path,
+            text,
+            callback,
+            enabled_flag=True,
+            add_to_menu=True,
+            add_to_toolbar=True,
+            status_tip=None,
+            whats_this=None,
+            parent=None):
 
         icon = QIcon(icon_path)
         action = QAction(icon, text, parent)
@@ -216,7 +161,6 @@ class Triple2Layer:
         # will be set False in run()
         self.first_start = True
 
-
     def unload(self):
         """Removes the plugin menu item and icon from QGIS GUI."""
         for action in self.actions:
@@ -224,7 +168,6 @@ class Triple2Layer:
                 self.tr(u'&QGISSPARQL'),
                 action)
             self.iface.removeToolBarIcon(action)
-
 
     def run(self):
         """Run method that performs all the real work"""
@@ -234,59 +177,41 @@ class Triple2Layer:
         if self.first_start == True:
             self.first_start = False
             self.dlg = Triple2LayerDialog()
-            
-            self.file_name=None
-            
-            self.sentence_endpoint_defaut()
-            
+            self.file_name = None
+            self.endpoint_defaut()
             self.dlg.pushButton.clicked.connect(self.execute)
-            
             self.dlg.button_box.rejected.connect(self.close)
-            
             self.dlg.buttonSPARQL.clicked.connect(self.open_sparql)
-
             self.dlg.actionToken.triggered.connect(self.set_token)
-
-            self.dlg.comboSourceType.textActivated.connect(self.sentence_endpoint_defaut)
+            self.dlg.comboSourceType.textActivated.connect(
+                self.endpoint_defaut)
 
         # show the dialog
         self.dlg.show()
-        
-        # Run the dialog event loop
-        '''
-        # comentado, main window nao tem exec_, preciso entender isso
-        result = self.dlg.exec_()
-        # See if OK was pressed
-        if result:
-            # Do something useful here - delete the line containing pass and
-            # substitute with your code.
-            pass
-        ''' 
 
-    def execute (self):  
-            self.check_attributes()
-            self.sentence_endpoint()
-            self.sentence_endpoint_defaut()
-            self.import_layer()
-            
-    def set_token (self):
-        
-        token, ok = QInputDialog.getText(self.dlg, "Data.World Token","Enter with token")
-        if(ok and token!= ""):
+
+    def execute(self):
+        self.check_attributes()
+        self.save_endpoint()
+        self.import_layer()
+
+    def set_token(self):
+
+        token, ok = QInputDialog.getText(
+            self.dlg, "Data.World Token", "Enter with token")
+        if (ok and token != ""):
             os.environ['DW_AUTH_TOKEN'] = token
-            
-           
+
     def check_attributes(self):
         #
         self.geo_column = ""
         self.saveAttrs = []
-        for row in range(self.dlg.tableAttributes.rowCount()): 
+        for row in range(self.dlg.tableAttributes.rowCount()):
             line_edit = self.dlg.tableAttributes.cellWidget(row, 4)
             attr_name = line_edit.text()
 
             item = self.dlg.tableAttributes.item(row, 3)
             var_name = item.text()
-        
 
             check_id = self.dlg.tableAttributes.cellWidget(row, 1)
             if (check_id.isChecked()):
@@ -296,64 +221,94 @@ class Triple2Layer:
             if (check_geo.isChecked()):
                 self.geo_column = attr_name
 
-            check = self.dlg.tableAttributes.cellWidget(row, 0) 
+            check = self.dlg.tableAttributes.cellWidget(row, 0)
             if check.isChecked():
                 combo_type = self.dlg.tableAttributes.cellWidget(row, 5)
-                self.saveAttrs.append((attr_name, dic_attr_type[combo_type.currentText()], var_name ))
-        
-        print (self.saveAttrs)      
-        print (self.geo_column)  
+                self.saveAttrs.append(
+                    (attr_name, dic_attr_type[combo_type.currentText()], var_name))
+
+        print(self.saveAttrs)
+        print(self.geo_column)
 
     def load_data_world(self, time):
-        QgsMessageLog.logMessage('A tarefa já está em execução.', 'MeuPlugin')
+        QgsMessageLog.logMessage('A tarefa já está em execução.', 'Triple2Layer')
 
-        ds = dw.query(self.dlg.lineEndpoint.text(), self.sparql, query_type='sparql')
-        return ds
+        ds = dw.query(self.dlg.lineEndpoint.text(),
+                      self.sparql, query_type='sparql')
 
- 
-    def update_layer(self, layer, progressDialog, time, ds):
-                QgsMessageLog.logMessage('A tarefa já está concluindo. '+str(time), 'MeuPlugin')
-                df = ds.dataframe
+        QgsMessageLog.logMessage(
+            'carregado os dados do dataworld.', 'Triple2Layer')
+        dict = ds.dataframe.to_dict('records')
+        return dict
 
+    def load_triple_store(self, time):
+        sparql = SPARQLWrapper(self.dlg.lineEndpoint.text())
+        sparql.setQuery(self.sparql)
+        sparql.setReturnFormat(JSON)
+        results = sparql.query().convert()
+        return results["results"]["bindings"]
 
-                df = df.reset_index()  # make sure indexes pair with number of rows
-                features = []
-                i = 0
-                total = len(df)
-                
-                progressDialog.setWindowTitle("Importing layer")
-                progressDialog.setLabelText("Importing features...")
-                progressDialog.setMaximum(total)
-                progressDialog.setValue(0)
-                progressDialog.show()
-            
-                for index, row in df.iterrows():
-                    fet = QgsFeature()
-                    fet.setGeometry(QgsGeometry.fromWkt(row[self.geo_column]))
-                    attrs = []
-                    for attr in self.saveAttrs:
-                        attrs.append(row[attr[2]])
-                    fet.setAttributes(attrs)
-                    features.append(fet)
-                    i += 1
-                    progressDialog.setValue(i)
-                    progressDialog.setLabelText("Importing feature {} of {}".format(i, total))
-                    QCoreApplication.processEvents() 
-                        
-                layer.addFeatures(features)
-                layer.updateExtents()
-                layer.commitChanges()
-                QgsProject.instance().addMapLayer(layer)
+    def get_value(self, row, attr, source='dw'):
+        if source == 'triple':
+            return row[attr]['value']
+        else:
+            return row[attr]
 
-                progressDialog.close()                 
+    def create_layer(self, source, time, records):
 
-                self.iface.messageBar().pushMessage(
-                "Success", "Imported layer",
-                level=Qgis.Success, duration=3) 
-                self.dlg.close()
-            
-    def import_from_dataworld(self, layer, progressDialog):
-        
+        layer = QgsVectorLayer('Polygon?crs=epsg:4326?field=' +
+                               self.id_column, self.dlg.lineLayer.text(), "memory")
+        pr = layer.dataProvider()
+        layer.startEditing()
+        # não funcionou com o map ???
+        attributes = [QgsField(x[0], x[1]) for x in self.saveAttrs]
+        pr.addAttributes(attributes)
+        layer.updateFields()
+
+        features = []
+        i = 0
+        total = 0
+        total = len(records)
+        QgsMessageLog.logMessage(
+            'A tarefa já está concluindo. '+str(time) + "-" + str(total), 'Triple2Layer')
+
+        progressDialog = QProgressDialog(
+            "Importing layer...", "Cancel", 0, 0, self.iface.mainWindow())
+        progressDialog.setWindowTitle("Importing layer")
+        progressDialog.setLabelText("Importing features...")
+        progressDialog.setMaximum(total)
+        progressDialog.setValue(0)
+        progressDialog.show()
+
+        for row in records:
+            fet = QgsFeature()
+            fet.setGeometry(QgsGeometry.fromWkt(
+                self.get_value(row, self.geo_column, source)))
+            attrs = []
+            for attr in self.saveAttrs:
+                attrs.append(self.get_value(row, attr[2], source))
+            fet.setAttributes(attrs)
+            features.append(fet)
+            i += 1
+            progressDialog.setValue(i)
+            progressDialog.setLabelText(
+                "Importing feature {} of {}".format(i, total))
+            QCoreApplication.processEvents()
+
+        layer.addFeatures(features)
+        layer.updateExtents()
+        layer.commitChanges()
+        QgsProject.instance().addMapLayer(layer)
+
+        progressDialog.close()
+
+        self.iface.messageBar().pushMessage(
+            "Success", "Imported layer",
+            level=Qgis.Success, duration=3)
+        self.dlg.close()
+
+    def import_from_dataworld(self):
+
         if "DW_AUTH_TOKEN" not in os.environ:
             self.iface.messageBar().pushMessage(
                 "Ooops", "Token not defined",
@@ -361,141 +316,68 @@ class Triple2Layer:
             )
             self.set_token()
         else:
-
-            #try:
-                self.iface.messageBar().pushMessage(
+            self.iface.messageBar().pushMessage(
                 "Success", "Importing a layer",
                 level=Qgis.Success, duration=10)
-                QgsMessageLog.logMessage('criarndo tarefa.', 'MeuPlugin')    
-                self.task = QgsTask.fromFunction('Minha Tarefa',self.load_data_world, on_finished= partial (self.update_layer, layer,progressDialog))
-                self.task.taskCompleted.connect(self.iface.messageBar().clearWidgets)
-                #task.finished.connect(partial(self.segundo_metodo, layer, progressDialog))
-                #task.finished.connect(self.terminou)
-                QgsApplication.taskManager().addTask(self.task)
-             
+            QgsMessageLog.logMessage('criando tarefa.', 'Triple2Layer')
+            self.task = QgsTask.fromFunction(
+                'Importing a layer', self.load_data_world, on_finished=partial(self.create_layer, 'dw'))
+            self.task.taskCompleted.connect(
+                self.iface.messageBar().clearWidgets)
+            QgsApplication.taskManager().addTask(self.task)
 
-            #except:
-             #   self.iface.messageBar().pushMessage(
-              #      "Error", "connection fail to dataworld",
-               #     level=Qgis.Warning, duration=3
-               # )
-    def sentence_endpoint(self):
-        caminho=self.buscapath()
-        source = self.dlg.comboSourceType.currentText()    
+    def save_endpoint(self):
+        caminho = self.buscapath()
+        source = self.dlg.comboSourceType.currentText()
         with open(caminho, "r") as arquivo:
-            linhas = json.load(arquivo)       
+            linhas = json.load(arquivo)
         novo_texto = self.dlg.lineEndpoint.text()
         linhas[source] = novo_texto
         with open(caminho, "w") as arquivo:
-            json.dump(linhas,arquivo) 
-                 
-    def sentence_endpoint_defaut(self):
-        caminho=self.buscapath()
-        source = self.dlg.comboSourceType.currentText()  
-          
+            json.dump(linhas, arquivo)
+
+    def endpoint_defaut(self):
+        caminho = self.buscapath()
+        source = self.dlg.comboSourceType.currentText()
+
         with open(caminho, "r") as arquivo:
-            linhas = json.load(arquivo)    
-        ultima_linha = linhas[source]
-        self.dlg.lineEndpoint.setText(ultima_linha)
-    
+            endpoints = json.load(arquivo)
+
+        endpoint = endpoints[source]
+        self.dlg.lineEndpoint.setText(endpoint)
+
     def buscapath(self):
         path_plugin = os.path.dirname(__file__)
         path_file = os.path.join(path_plugin, "endpoint.json")
         return path_file
-                    
-    def import_from_triple(self, layer, progressDialog):
-        sparql = SPARQLWrapper(self.dlg.lineEndpoint.text())
-        sparql.setQuery(self.sparql)
-        sparql.setReturnFormat(JSON)
 
-        try:
-            results = sparql.query().convert()
+    def import_from_triple(self):
+        self.iface.messageBar().pushMessage(
+            "Success", "Importing a layer",
+            level=Qgis.Success, duration=10)
+        QgsMessageLog.logMessage('criarndo tarefa.', 'Triple2Layer')
+        self.task = QgsTask.fromFunction(
+            'Importing a layer', self.load_triple_store, on_finished=partial(self.create_layer, 'triple'))
+        self.task.taskCompleted.connect(self.iface.messageBar().clearWidgets)
+        QgsApplication.taskManager().addTask(self.task)
 
-            features = []
-            i = 0
-            
-            progressDialog.setWindowTitle("Importing layer")
-            progressDialog.setLabelText("Importing features...")
-            progressDialog.setMaximum(len(results["results"]["bindings"]))
-            progressDialog.setValue(0)
-            progressDialog.show()
-
-            for row in results["results"]["bindings"]:
-                fet = QgsFeature()
-                fet.setGeometry(QgsGeometry.fromWkt(row[self.geo_column]["value"]))
-                attrs = []
-                for attr in self.saveAttrs:
-                    attrs.append(row[attr[2]]["value"])
-                fet.setAttributes(attrs)
-                features.append(fet)
-                i += 1
-                progressDialog.setValue(i)
-                QCoreApplication.processEvents()
-
-            layer.addFeatures(features)
-            layer.updateExtents()
-            layer.commitChanges()
-            QgsProject.instance().addMapLayer(layer)
-
-            progressDialog.close() 
-                
-            self.iface.messageBar().pushMessage(
-                "Success", "Imported layer",
-                level=Qgis.Success, duration=3
-            )
-            self.dlg.close()
-
-        except:
-            progressDialog.close()
-            self.iface.messageBar().pushMessage(
-                "Error", "connection fail to triple store",
-                level=Qgis.Warning, duration=3
-            )
-          
     def import_layer(self):
 
-        #ds = dw.query('landchangedata/novoprojeto', s, query_type='sparql')
-        # create layer
-        #try:
-            layer = QgsVectorLayer('Polygon?crs=epsg:4326?field='+self.id_column,self.dlg.lineLayer.text(),"memory")
-            pr = layer.dataProvider()
-            layer.startEditing()    
-            attributes = [ QgsField (x[0], x[1] ) for x in  self.saveAttrs  ] # não funcionou com o map ???
-            pr.addAttributes(attributes)
-            layer.updateFields()
-            
-            features = []
-            
-            progressDialog = QProgressDialog("Importing layer...", "Cancel", 0, 0, self.iface.mainWindow())
-            progressDialog.setWindowTitle("Importing layer")
-            progressDialog.setWindowModality(Qt.WindowModal)
-            progressDialog.show()
+        source = self.dlg.comboSourceType.currentText()
 
-            source = self.dlg.comboSourceType.currentText()
-                        
-            if source == "Triple Store Endpoint":
-                self.import_from_triple(layer,progressDialog)
-            else:
-                self.import_from_dataworld(layer,progressDialog)
-              
-            progressDialog.close() 
-        #except:
-            '''
-            if not self.file_name:
-                self.iface.messageBar().pushMessage(
-                "Ooops", "upload a SPARQL file",
-                level=Qgis.Info, duration=3)
-                self.open_sparql()
-            else:
-                self.iface.messageBar().pushMessage(
-                "Ooops", "no attributes selected",
-                level=Qgis.Info, duration=3)
-            '''                        
-    def open_sparql (self):
-        self.file_name=str(QFileDialog.getOpenFileName(caption="Defining input file", filter="SPARQL(*.sparql)")[0])
+        self.dlg.close()
+
+        if source == "Triple Store Endpoint":
+            self.import_from_triple()
+        else:
+            self.import_from_dataworld()
+
+    def open_sparql(self):
+        self.file_name = str(QFileDialog.getOpenFileName(
+            caption="Defining input file", filter="SPARQL(*.sparql)")[0])
         self.dlg.lineSPARQL.setText(self.file_name)
-        
-        try: 
+
+        try:
             with open(self.file_name, 'r') as file:
                 data = file.read()
                 self.sparql = data
@@ -503,21 +385,22 @@ class Triple2Layer:
         except:
             return
 
-    def fill_table(self, s): 
+    def fill_table(self, s):
 
         tokens = s.replace('\n', ' ').split(" ")
         tokens = list(filter(lambda x: x != '', tokens))
-        print (tokens)
-        tokens_upper = list(map (lambda x: x.upper(), tokens))
+        print(tokens)
+        tokens_upper = list(map(lambda x: x.upper(), tokens))
         start = tokens_upper.index('SELECT') + 1
-        end = tokens_upper.index('WHERE') 
-        attributes = tokens[start:end] #identificar os atributos
-        attributes = list(map (lambda x: x[1:], attributes))
-        print (attributes)
-        
+        end = tokens_upper.index('WHERE')
+        attributes = tokens[start:end]  # identificar os atributos
+        attributes = list(map(lambda x: x[1:], attributes))
+        print(attributes)
+
         self.dlg.tableAttributes.setRowCount(len(attributes))
         self.dlg.tableAttributes.setColumnCount(6)
-        self.dlg.tableAttributes.setHorizontalHeaderLabels(["Import?", "IDColumn?", "GeoColumn?", "Variable", "Attribute name", "Attribute type"])
+        self.dlg.tableAttributes.setHorizontalHeaderLabels(
+            ["Import?", "IDColumn?", "GeoColumn?", "Variable", "Attribute name", "Attribute type"])
 
         start = 0
         for attr in attributes:
@@ -532,8 +415,6 @@ class Triple2Layer:
             comboBox.addItem("Double")
             self.dlg.tableAttributes.setCellWidget(start, 5, comboBox)
             start += 1
-             
+
     def close(self):
         self.dlg.setVisible(False)
-
-        
