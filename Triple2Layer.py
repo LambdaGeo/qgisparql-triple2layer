@@ -84,13 +84,6 @@ class Triple2Layer:
     """QGIS Plugin Implementation."""
 
     def __init__(self, iface):
-        """Constructor.
-
-        :param iface: An interface instance that will be passed to this class
-            which provides the hook by which you can manipulate the QGIS
-            application at run time.
-        :type iface: QgsInterface
-        """
         # Save reference to the QGIS interface
         self.iface = iface
         # initialize plugin directory
@@ -116,16 +109,6 @@ class Triple2Layer:
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
-        """Get the translation for a string using Qt translation API.
-
-        We implement this ourselves since we do not inherit QObject.
-
-        :param message: String for translation.
-        :type message: str, QString
-
-        :returns: Translated version of message.
-        :rtype: QString
-        """
         # noinspection PyTypeChecker,PyArgumentList,PyCallByClass
         return QCoreApplication.translate('Triple2Layer', message)
 
@@ -140,44 +123,6 @@ class Triple2Layer:
             status_tip=None,
             whats_this=None,
             parent=None):
-        """Add a toolbar icon to the toolbar.
-
-        :param icon_path: Path to the icon for this action. Can be a resource
-            path (e.g. ':/plugins/foo/bar.png') or a normal file system path.
-        :type icon_path: str
-
-        :param text: Text that should be shown in menu items for this action.
-        :type text: str
-
-        :param callback: Function to be called when the action is triggered.
-        :type callback: function
-
-        :param enabled_flag: A flag indicating if the action should be enabled
-            by default. Defaults to True.
-        :type enabled_flag: bool
-
-        :param add_to_menu: Flag indicating whether the action should also
-            be added to the menu. Defaults to True.
-        :type add_to_menu: bool
-
-        :param add_to_toolbar: Flag indicating whether the action should also
-            be added to the toolbar. Defaults to True.
-        :type add_to_toolbar: bool
-
-        :param status_tip: Optional text to show in a popup when mouse pointer
-            hovers over the action.
-        :type status_tip: str
-
-        :param parent: Parent widget for the new action. Defaults None.
-        :type parent: QWidget
-
-        :param whats_this: Optional text to show in the status bar when the
-            mouse pointer hovers over the action.
-
-        :returns: The action that was created. Note that the action is also
-            added to self.actions list.
-        :rtype: QAction
-        """
 
         icon = QIcon(icon_path)
         action = QAction(icon, text, parent)
@@ -232,40 +177,22 @@ class Triple2Layer:
         if self.first_start == True:
             self.first_start = False
             self.dlg = Triple2LayerDialog()
-
             self.file_name = None
-
-            self.sentence_endpoint_defaut()
-
+            self.endpoint_defaut()
             self.dlg.pushButton.clicked.connect(self.execute)
-
             self.dlg.button_box.rejected.connect(self.close)
-
             self.dlg.buttonSPARQL.clicked.connect(self.open_sparql)
-
             self.dlg.actionToken.triggered.connect(self.set_token)
-
             self.dlg.comboSourceType.textActivated.connect(
-                self.sentence_endpoint_defaut)
+                self.endpoint_defaut)
 
         # show the dialog
         self.dlg.show()
 
-        # Run the dialog event loop
-        '''
-        # comentado, main window nao tem exec_, preciso entender isso
-        result = self.dlg.exec_()
-        # See if OK was pressed
-        if result:
-            # Do something useful here - delete the line containing pass and
-            # substitute with your code.
-            pass
-        '''
 
     def execute(self):
         self.check_attributes()
-        self.sentence_endpoint()
-        self.sentence_endpoint_defaut()
+        self.save_endpoint()
         self.import_layer()
 
     def set_token(self):
@@ -304,13 +231,13 @@ class Triple2Layer:
         print(self.geo_column)
 
     def load_data_world(self, time):
-        QgsMessageLog.logMessage('A tarefa já está em execução.', 'MeuPlugin')
+        QgsMessageLog.logMessage('A tarefa já está em execução.', 'Triple2Layer')
 
         ds = dw.query(self.dlg.lineEndpoint.text(),
                       self.sparql, query_type='sparql')
 
         QgsMessageLog.logMessage(
-            'carregado os dados do dataworld.', 'MeuPlugin')
+            'carregado os dados do dataworld.', 'Triple2Layer')
         dict = ds.dataframe.to_dict('records')
         return dict
 
@@ -327,7 +254,7 @@ class Triple2Layer:
         else:
             return row[attr]
 
-    def update_layer(self, source, time, records):
+    def create_layer(self, source, time, records):
 
         layer = QgsVectorLayer('Polygon?crs=epsg:4326?field=' +
                                self.id_column, self.dlg.lineLayer.text(), "memory")
@@ -343,7 +270,7 @@ class Triple2Layer:
         total = 0
         total = len(records)
         QgsMessageLog.logMessage(
-            'A tarefa já está concluindo. '+str(time) + "-" + str(total), 'MeuPlugin')
+            'A tarefa já está concluindo. '+str(time) + "-" + str(total), 'Triple2Layer')
 
         progressDialog = QProgressDialog(
             "Importing layer...", "Cancel", 0, 0, self.iface.mainWindow())
@@ -392,14 +319,14 @@ class Triple2Layer:
             self.iface.messageBar().pushMessage(
                 "Success", "Importing a layer",
                 level=Qgis.Success, duration=10)
-            QgsMessageLog.logMessage('criarndo tarefa.', 'MeuPlugin')
+            QgsMessageLog.logMessage('criando tarefa.', 'Triple2Layer')
             self.task = QgsTask.fromFunction(
-                'Importing a layer', self.load_data_world, on_finished=partial(self.update_layer, 'dw'))
+                'Importing a layer', self.load_data_world, on_finished=partial(self.create_layer, 'dw'))
             self.task.taskCompleted.connect(
                 self.iface.messageBar().clearWidgets)
             QgsApplication.taskManager().addTask(self.task)
 
-    def sentence_endpoint(self):
+    def save_endpoint(self):
         caminho = self.buscapath()
         source = self.dlg.comboSourceType.currentText()
         with open(caminho, "r") as arquivo:
@@ -409,14 +336,15 @@ class Triple2Layer:
         with open(caminho, "w") as arquivo:
             json.dump(linhas, arquivo)
 
-    def sentence_endpoint_defaut(self):
+    def endpoint_defaut(self):
         caminho = self.buscapath()
         source = self.dlg.comboSourceType.currentText()
 
         with open(caminho, "r") as arquivo:
-            linhas = json.load(arquivo)
-        ultima_linha = linhas[source]
-        self.dlg.lineEndpoint.setText(ultima_linha)
+            endpoints = json.load(arquivo)
+
+        endpoint = endpoints[source]
+        self.dlg.lineEndpoint.setText(endpoint)
 
     def buscapath(self):
         path_plugin = os.path.dirname(__file__)
@@ -427,11 +355,10 @@ class Triple2Layer:
         self.iface.messageBar().pushMessage(
             "Success", "Importing a layer",
             level=Qgis.Success, duration=10)
-        QgsMessageLog.logMessage('criarndo tarefa.', 'MeuPlugin')
+        QgsMessageLog.logMessage('criarndo tarefa.', 'Triple2Layer')
         self.task = QgsTask.fromFunction(
-            'Importing a layer', self.load_triple_store, on_finished=partial(self.update_layer, 'triple'))
+            'Importing a layer', self.load_triple_store, on_finished=partial(self.create_layer, 'triple'))
         self.task.taskCompleted.connect(self.iface.messageBar().clearWidgets)
-        # self.load_data_world(0)
         QgsApplication.taskManager().addTask(self.task)
 
     def import_layer(self):
