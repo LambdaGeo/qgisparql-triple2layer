@@ -393,6 +393,19 @@ class Triple2Layer:
         except:
             return
 
+    def geo_selected (self,row, state):
+        #self.dlg.tableAttributes.
+        w1 = self.dlg.tableAttributes.cellWidget(row, 4)
+        w2 = self.dlg.tableAttributes.cellWidget(row, 5)
+        if state == QtCore.Qt.Checked:
+            w1.setEnabled(False)
+            w2.setEnabled(False)        
+        else:
+            w1.setEnabled(True)
+            w2.setEnabled(True)
+        print (state)
+        
+
     def fill_table(self, s):
 
         tokens = s.replace('\n', ' ').split(" ")
@@ -414,7 +427,9 @@ class Triple2Layer:
         for attr in attributes:
             self.dlg.tableAttributes.setCellWidget(start, 0, QCheckBox())
             self.dlg.tableAttributes.setCellWidget(start, 1, QCheckBox())
-            self.dlg.tableAttributes.setCellWidget(start, 2, QCheckBox())
+            geo_check = QCheckBox()
+            geo_check.stateChanged.connect (partial (self.geo_selected, start))
+            self.dlg.tableAttributes.setCellWidget(start, 2, geo_check)
             self.dlg.tableAttributes.setItem(start, 3, QTableWidgetItem(attr))
             self.dlg.tableAttributes.setCellWidget(start, 4, QLineEdit(attr))
             comboBox = QComboBox()
