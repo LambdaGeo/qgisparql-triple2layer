@@ -263,6 +263,15 @@ class Triple2Layer:
         i = 0
         total = 0
         total = len(records)
+        #verifica se o atributo de geometria esta correto
+        geom = QgsGeometry.fromWkt( self.get_value(records[0], self.geo_column, source))
+        print ("geommmmmm", geom)
+        if geom.isNull():
+            self.erroOnLoadLayer = True
+            self.errorMessage = "Invalid geometry attribute, select a wkt attribute value"
+            self.check_if_imported_layer()
+            return
+
         QgsMessageLog.logMessage(
             'A tarefa já está concluindo. '+str(time) + "-" + str(total), 'Triple2Layer')
 
@@ -273,11 +282,13 @@ class Triple2Layer:
         progressDialog.setMaximum(total)
         progressDialog.setValue(0)
         progressDialog.show()
+        progressDialog.setCancelButton(None)
 
         for row in records:
             fet = QgsFeature()
-            fet.setGeometry(QgsGeometry.fromWkt(
-                self.get_value(row, self.geo_column, source)))
+            geom = QgsGeometry.fromWkt(
+                self.get_value(row, self.geo_column, source))
+            fet.setGeometry(geom)
             attrs = []
             for attr in self.saveAttrs:
                 attrs.append(self.get_value(row, attr[2], source))
