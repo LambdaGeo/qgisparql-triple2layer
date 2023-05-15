@@ -40,33 +40,9 @@ from functools import partial
 
 plugin_dir = os.path.dirname(__file__)
 
-try:
-    import pip
-except:
-    exec(open(os.path.join(plugin_dir, "get_pip.py")).read())
-    import pip
-    # just in case the included version is old
-    pip.main(['install', '--upgrade', 'pip'])
-    # pip.main(['install','--upgrade','!pip'])
+from SPARQLWrapper import SPARQLWrapper, JSON, N3
 
-try:
-    from SPARQLWrapper import SPARQLWrapper, JSON, N3
-except:
-    pip.main(['install', 'SPARQLWrapper', 'pip'])
-    '''import sys
-    import subprocess
-    subprocess.check_call([sys.executable, '-m', 'pip', 'SPARQLWrapper'])'''
-
-
-try:
-    import datadotworld as dw
-except:
-    pip.main(['install', 'datadotworld[pandas]', 'pip'])
-    '''import sys
-    import subprocess
-    subprocess.check_call([sys.executable, '-m', 'pip', 'datadotworld[pandas]'])'''
-    # pip.main(['install', 'datadotworld[pandas]','!pip'])
-    import datadotworld as dw
+import datadotworld as dw
 
 
 dic_attr_type = {
@@ -191,9 +167,14 @@ class Triple2Layer:
 
 
     def execute(self):
-        self.check_attributes()
-        self.save_endpoint()
-        self.import_layer()
+        if self.check_attributes():
+            self.save_endpoint()
+            self.import_layer()
+        else:
+            self.erroOnLoadLayer = True
+            self.errorMessage = "Select the geo atribute"
+            self.check_if_imported_layer()
+            print ("erroor")
 
     def set_token(self):
 
@@ -203,9 +184,11 @@ class Triple2Layer:
             os.environ['DW_AUTH_TOKEN'] = token
 
     def check_attributes(self):
-        #
+        selected_geo = False
+
         self.geo_column = ""
         self.saveAttrs = []
+        self.id_column = "id:integer"
         for row in range(self.dlg.tableAttributes.rowCount()):
             line_edit = self.dlg.tableAttributes.cellWidget(row, 4)
             attr_name = line_edit.text()
@@ -214,39 +197,50 @@ class Triple2Layer:
             var_name = item.text()
 
             check_id = self.dlg.tableAttributes.cellWidget(row, 1)
-            if (check_id.isChecked()):
+            check_geo = self.dlg.tableAttributes.cellWidget(row, 2)
+            check = self.dlg.tableAttributes.cellWidget(row, 0)
+            combo_type = self.dlg.tableAttributes.cellWidget(row, 5)
+
+            if check_id.isChecked():
                 self.id_column = attr_name
 
-            check_geo = self.dlg.tableAttributes.cellWidget(row, 2)
-            if (check_geo.isChecked()):
+            if check_geo.isChecked():
                 self.geo_column = attr_name
+                selected_geo = True
 
-            check = self.dlg.tableAttributes.cellWidget(row, 0)
-            if check.isChecked():
-                combo_type = self.dlg.tableAttributes.cellWidget(row, 5)
+            if check.isChecked() or check_id.isChecked():
                 self.saveAttrs.append(
                     (attr_name, dic_attr_type[combo_type.currentText()], var_name))
-
-        print(self.saveAttrs)
-        print(self.geo_column)
+        print ("check", selected_geo)
+        return selected_geo
 
     def load_data_world(self, time):
         QgsMessageLog.logMessage('A tarefa já está em execução.', 'Triple2Layer')
 
-        ds = dw.query(self.dlg.lineEndpoint.text(),
+        try:
+            ds = dw.query(self.dlg.lineEndpoint.text(),
                       self.sparql, query_type='sparql')
 
-        QgsMessageLog.logMessage(
-            'carregado os dados do dataworld.', 'Triple2Layer')
-        dict = ds.dataframe.to_dict('records')
-        return dict
+            QgsMessageLog.logMessage('carregado os dados do dataworld.', 'Triple2Layer')
+            dict = ds.dataframe.to_dict('records')
+            return dict
+        except:
+            QgsMessageLog.logMessage('Fail to load from dataworld', 'Triple2Layer')
+            self.errorMessage = 'Fail to load data from dataworld: check dataset name'
+            self.erroOnLoadLayer = True
+
 
     def load_triple_store(self, time):
-        sparql = SPARQLWrapper(self.dlg.lineEndpoint.text())
-        sparql.setQuery(self.sparql)
-        sparql.setReturnFormat(JSON)
-        results = sparql.query().convert()
-        return results["results"]["bindings"]
+        try:
+            sparql = SPARQLWrapper(self.dlg.lineEndpoint.text())
+            sparql.setQuery(self.sparql)
+            sparql.setReturnFormat(JSON)
+            results = sparql.query().convert()
+            return results["results"]["bindings"]
+        except:
+            QgsMessageLog.logMessage('Fail to load from triple store', 'Triple2Layer')
+            self.errorMessage = 'Fail to load data from triple store: check triple store endpoint'
+            self.erroOnLoadLayer = True
 
     def get_value(self, row, attr, source='dw'):
         if source == 'triple':
@@ -305,7 +299,16 @@ class Triple2Layer:
         self.iface.messageBar().pushMessage(
             "Success", "Imported layer",
             level=Qgis.Success, duration=3)
-        self.dlg.close()
+        
+
+    def check_if_imported_layer (self):
+        self.iface.messageBar().clearWidgets()
+        if self.erroOnLoadLayer == True:
+            self.iface.messageBar().pushMessage(
+            "Fail", self.errorMessage,
+            level=Qgis.Warning, duration=3)
+            
+
 
     def import_from_dataworld(self):
 
@@ -316,35 +319,37 @@ class Triple2Layer:
             )
             self.set_token()
         else:
-            self.iface.messageBar().pushMessage(
-                "Success", "Importing a layer",
-                level=Qgis.Success, duration=10)
             QgsMessageLog.logMessage('criando tarefa.', 'Triple2Layer')
-            self.task = QgsTask.fromFunction(
-                'Importing a layer', self.load_data_world, on_finished=partial(self.create_layer, 'dw'))
-            self.task.taskCompleted.connect(
-                self.iface.messageBar().clearWidgets)
+            self.task = QgsTask.fromFunction('Importing a layer', self.load_data_world, on_finished=partial(self.create_layer, 'dw'))
+            self.task.taskCompleted.connect(self.check_if_imported_layer)
             QgsApplication.taskManager().addTask(self.task)
 
     def save_endpoint(self):
         caminho = self.buscapath()
         source = self.dlg.comboSourceType.currentText()
-        with open(caminho, "r") as arquivo:
-            linhas = json.load(arquivo)
-        novo_texto = self.dlg.lineEndpoint.text()
-        linhas[source] = novo_texto
+        try:
+            with open(caminho, "r") as arquivo:
+                endpoints = json.load(arquivo)
+        except:
+            endpoints = {}
+
+        url_ds = self.dlg.lineEndpoint.text()
+
+        endpoints[source] = url_ds
+    
         with open(caminho, "w") as arquivo:
-            json.dump(linhas, arquivo)
+            json.dump(endpoints, arquivo)
 
     def endpoint_defaut(self):
         caminho = self.buscapath()
         source = self.dlg.comboSourceType.currentText()
-
-        with open(caminho, "r") as arquivo:
-            endpoints = json.load(arquivo)
-
-        endpoint = endpoints[source]
-        self.dlg.lineEndpoint.setText(endpoint)
+        try:
+            with open(caminho, "r") as arquivo:
+                endpoints = json.load(arquivo)
+            endpoint = endpoints[source]
+            self.dlg.lineEndpoint.setText(endpoint)
+        except:
+            self.dlg.lineEndpoint.setText("")
 
     def buscapath(self):
         path_plugin = os.path.dirname(__file__)
@@ -352,20 +357,23 @@ class Triple2Layer:
         return path_file
 
     def import_from_triple(self):
-        self.iface.messageBar().pushMessage(
-            "Success", "Importing a layer",
-            level=Qgis.Success, duration=10)
-        QgsMessageLog.logMessage('criarndo tarefa.', 'Triple2Layer')
+        QgsMessageLog.logMessage('criando tarefa.', 'Triple2Layer')
         self.task = QgsTask.fromFunction(
             'Importing a layer', self.load_triple_store, on_finished=partial(self.create_layer, 'triple'))
-        self.task.taskCompleted.connect(self.iface.messageBar().clearWidgets)
+        self.task.taskCompleted.connect(self.check_if_imported_layer)
         QgsApplication.taskManager().addTask(self.task)
 
     def import_layer(self):
 
+        self.erroOnLoadLayer = False
+
         source = self.dlg.comboSourceType.currentText()
 
         self.dlg.close()
+
+        self.iface.messageBar().pushMessage(
+                "Importing a layer", "Importing a layer ...",
+                level=Qgis.Info, duration=10)
 
         if source == "Triple Store Endpoint":
             self.import_from_triple()
@@ -384,6 +392,19 @@ class Triple2Layer:
                 self.fill_table(data)
         except:
             return
+
+    def geo_selected (self,row, state):
+        #self.dlg.tableAttributes.
+        w1 = self.dlg.tableAttributes.cellWidget(row, 4)
+        w2 = self.dlg.tableAttributes.cellWidget(row, 5)
+        if state == QtCore.Qt.Checked:
+            w1.setEnabled(False)
+            w2.setEnabled(False)        
+        else:
+            w1.setEnabled(True)
+            w2.setEnabled(True)
+        print (state)
+        
 
     def fill_table(self, s):
 
@@ -406,7 +427,9 @@ class Triple2Layer:
         for attr in attributes:
             self.dlg.tableAttributes.setCellWidget(start, 0, QCheckBox())
             self.dlg.tableAttributes.setCellWidget(start, 1, QCheckBox())
-            self.dlg.tableAttributes.setCellWidget(start, 2, QCheckBox())
+            geo_check = QCheckBox()
+            geo_check.stateChanged.connect (partial (self.geo_selected, start))
+            self.dlg.tableAttributes.setCellWidget(start, 2, geo_check)
             self.dlg.tableAttributes.setItem(start, 3, QTableWidgetItem(attr))
             self.dlg.tableAttributes.setCellWidget(start, 4, QLineEdit(attr))
             comboBox = QComboBox()
