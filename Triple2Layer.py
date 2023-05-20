@@ -410,10 +410,12 @@ class Triple2Layer:
         w2 = self.dlg.tableAttributes.cellWidget(row, 5)
         if state == QtCore.Qt.Checked:
             w1.setEnabled(False)
-            w2.setEnabled(False)        
+            w2.setEnabled(False)  
+            self.dlg.pushButton.setEnabled(True)
         else:
             w1.setEnabled(True)
             w2.setEnabled(True)
+            self.dlg.pushButton.setEnabled(False)
         print (state)
         
 
