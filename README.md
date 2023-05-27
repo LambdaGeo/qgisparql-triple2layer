@@ -124,6 +124,7 @@ Veremos a seguir que o plugin, precisará de algumas informações do usuários 
 Para importarmos um dado precisamos carregar um “SPARQL file”. Podemos fazer o carregamento do **arquivo RDF** abrindo a caixa de diálogo clicando no botão no lado direito como mostrado na figura 6 a seguir
 
 ![Figura 6: Botão de carregamento do SPARQL  file](https://github.com/LambdaGeo/qgisparql-triple2layer/assets/108685222/8caac20e-cf6d-4ff5-bc93-052b3335033a)
+  
 Figura 6: Botão de carregamento do SPARQL  file
 
 Ao clicar no botão vai abrir uma caixa de diálogo no explorador de arquivos do computador, onde podemos selecionar o arquivo que precisaremos como mostrado a Figura 7. Podemos então escolher um arquivo como mostrado na seta de numero 1 e podemos clicar em abrir para fazer o carregamento do dado. 
