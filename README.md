@@ -16,6 +16,15 @@ nervaljunior
 
 ---
 
+## A seguir é possivel ver na figura 4 a interface gráfica inicial do plugin “**Triple2Layer**”.
+
+<div align="center">
+  <img src="https://github.com/LambdaGeo/qgisparql-triple2layer/assets/108685222/f1d3c4d2-c02c-495d-b7db-33b48dadc84e" alt="Figura 4: Interface do plugin Triple2layer">
+  <p>Figura 4: Interface do plugin Triple2layer <p/>
+</div>
+
+
+
 ## caracteristicas:
 
 Atualmente o plugin é compatível com servidores de banco de dados conectados, denominados em inglês como triple store, independentemente de implementação (ex. Virtuoso e Apache Jena ***Fuseki)***.  Além destes servidores, a atual versão é capaz de carregar dados do portal de dados denominado de [data.world](http://data.world) ([https://docs.data.world/](https://docs.data.world/i)).
