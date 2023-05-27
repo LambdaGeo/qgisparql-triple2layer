@@ -151,7 +151,7 @@ class Ui_MainWindow(object):
         self.camada_2.setText(_translate("MainWindow", "Layer Name:"))
         self.comboSourceType.setItemText(0, _translate("MainWindow", "Triple Store Endpoint"))
         self.comboSourceType.setItemText(1, _translate("MainWindow", "Data.World Dataset"))
-        self.buttonSPARQL.setText(_translate("MainWindow", " SPARQL File"))
+        self.buttonSPARQL.setText(_translate("MainWindow", "Open SPARQL"))
         self.atributos_2.setText(_translate("MainWindow", "Attributes"))
         self.pushButton.setText(_translate("MainWindow", "Import"))
         self.menuSettings.setTitle(_translate("MainWindow", "Settings"))
