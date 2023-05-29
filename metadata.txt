@@ -6,7 +6,7 @@
 name=Triple2Layer
 qgisMinimumVersion=3.0
 description=this plugin imports data
-version=1.0
+version=0.1
 author=Sérgio Costa
 email=sergio.costa@ufma.br
 
@@ -14,8 +14,8 @@ maintener=Nerval Junior
 
 about=This plugin create a layer from linked data retrieved from a triple store or data.world.
 
-tracker=http://bugs
-repository=https://github.com/LambdaGeo/qgisparql-triple2layer
+tracker=https://github.com/LambdaGeo/qgisparql-triple2layer/issues
+repository=https://github.com/LambdaGeo/qgisparql-triple2layer.git
 # End of mandatory metadata
 
 # Recommended items:
