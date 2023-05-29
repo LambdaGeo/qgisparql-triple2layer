@@ -7,13 +7,15 @@ name=Triple2Layer
 qgisMinimumVersion=3.0
 description=this plugin imports data
 version=1.0
-author=Nerval Junior 
-email=nerval1@hotmail.com
+author=Sérgio Costa
+email=sergio.costa@ufma.br
 
-about=this plugin imports data.
+maintener=Nerval Junior 
+
+about=This plugin create a layer from linked data retrieved from a triple store or data.world.
 
 tracker=http://bugs
-repository=http://repo
+repository=https://github.com/LambdaGeo/qgisparql-triple2layer
 # End of mandatory metadata
 
 # Recommended items:
@@ -25,11 +27,11 @@ hasProcessingProvider=no
 # Tags are comma separated with spaces allowed
 tags=analysis, database, export, import, layers, wkt
 
-homepage=http://homepage
+homepage=https://profsergiocosta.notion.site/QGISSPARQL-Triple2Layer-214a16da7cc44934847e414e06905bee
 category=Plugins
 icon=icon.png
 # experimental flag
-experimental=False
+experimental=True
 
 # deprecated flag (applies to the whole plugin, not just a single version)
 deprecated=False
@@ -40,7 +42,7 @@ deprecated=False
 # plugin_dependencies=
 
 Category of the plugin: Raster, Vector, Database or Web
-# category=
+category=Vector
 
 # If the plugin can run on QGIS Server.
 server=False
