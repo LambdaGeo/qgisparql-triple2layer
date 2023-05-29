@@ -28,7 +28,7 @@ hasProcessingProvider=no
 tags=analysis, database, export, import, layers, wkt
 
 homepage=https://profsergiocosta.notion.site/QGISSPARQL-Triple2Layer-214a16da7cc44934847e414e06905bee
-category=Plugins
+category=Vector
 icon=icon.png
 # experimental flag
 experimental=True
@@ -41,8 +41,6 @@ deprecated=False
 # Check the documentation for more information.
 # plugin_dependencies=
 
-Category of the plugin: Raster, Vector, Database or Web
-category=Vector
 
 # If the plugin can run on QGIS Server.
 server=False
