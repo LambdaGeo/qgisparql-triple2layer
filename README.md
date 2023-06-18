@@ -17,13 +17,12 @@
 
 ## Como utilizar 
 
-<aside>
-💡 As capturas de tela para esta documentação foram tiradas no QGIS 3.26.3 em execução no Windows. Dependendo da sua configuração, as telas que você encontra podem parecer um pouco diferentes. No entanto, todos os mesmos botões ainda estarão disponíveis e as instruções funcionarão em qualquer sistema operacional. Você precisará do QGIS 3.4 (a versão mais recente no momento de redação) para usar este curso.
 
-</aside>
+> `💡 As capturas de tela para esta documentação foram tiradas no QGIS 3.26.3 em execução no Windows. Dependendo da sua configuração, as telas que você encontra podem parecer um pouco diferentes. No entanto, todos os mesmos botões ainda estarão disponíveis e as instruções funcionarão em qualquer sistema operacional. Você precisará do QGIS 3.4 (a versão mais recente no momento de redação) para usar este curso.`
 
 
-💡 Antes de iniciar este exercício, o Plugin **Triple2Layer** deve estar instalado no seu computador.
+
+> `💡 Antes de iniciar este exercício, o Plugin **Triple2Layer** deve estar instalado no seu computador.`
 
 
 Vamos começar imediatamente!
