@@ -16,6 +16,19 @@
 ---
 
 ## Como utilizar 
+
+<aside>
+💡 As capturas de tela para esta documentação foram tiradas no QGIS 3.26.3 em execução no Windows. Dependendo da sua configuração, as telas que você encontra podem parecer um pouco diferentes. No entanto, todos os mesmos botões ainda estarão disponíveis e as instruções funcionarão em qualquer sistema operacional. Você precisará do QGIS 3.4 (a versão mais recente no momento de redação) para usar este curso.
+
+</aside>
+
+<aside>
+💡 Antes de iniciar este exercício, o Plugin **Layer2triple** deve estar instalado no seu computador.
+
+</aside>
+
+Vamos começar imediatamente!
+
 Para utilizarmos o **Triple2Layer** basta abrir o **QGIS** na barra de menu e passar o mouse por cima do vetor através do qual será possível ver as ferramentas nos permitindo, assim, manipular camadas vetoriais. Dessa forma será possível acessar em célula QGISPARQL os plugins da **DBCells**. 
 
 Na Figura 1 a seguir, podemos ver a **área dos plugins ativos indicada** com a seta de número 3.  Indo em vetor na barra de menu como mostrado na seta de número 1,podemos então abrir o plugin **Triple2Layer** e selecionar o plugin desejado, no caso o **Triple2Layer** mostrado na seta de número 2.
