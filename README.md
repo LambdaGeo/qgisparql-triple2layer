@@ -23,10 +23,8 @@
 </aside>
 
 
-<aside>
 💡 Antes de iniciar este exercício, o Plugin **Triple2Layer** deve estar instalado no seu computador.
 
-</aside>
 
 Vamos começar imediatamente!
 
