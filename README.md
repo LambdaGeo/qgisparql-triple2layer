@@ -22,8 +22,9 @@
 
 </aside>
 
+
 <aside>
-💡 Antes de iniciar este exercício, o Plugin **Layer2triple** deve estar instalado no seu computador.
+💡 Antes de iniciar este exercício, o Plugin **Triple2Layer** deve estar instalado no seu computador.
 
 </aside>
 
