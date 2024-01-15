@@ -9,6 +9,21 @@
 
 ### Este plugin visa importar os dados de base de dados conectado e convertê-lo para uma camada de dado geográfico no sistema de informação geográfica QGIS (https://qgis.org/).
 
+<table align="right">
+  <tr>
+    <td height="43px">
+      <b>
+        <a href="README-pt.md">Português 🇧🇷</a>
+      </b>
+    </td>
+  </tr>
+  <tr>
+    <td height="43px">
+      <a href="README.md">English 🇺🇸</a>
+    </td>
+  </tr>
+</table>
+
 # Triple2Layer
 ## An application for importing geographic data
 
