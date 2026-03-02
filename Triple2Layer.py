@@ -41,8 +41,12 @@ from functools import partial
 plugin_dir = os.path.dirname(__file__)
 
 from SPARQLWrapper import SPARQLWrapper, JSON, N3
+from SPARQLWrapper.SPARQLExceptions import SPARQLWrapperException
 
 import datadotworld as dw
+from requests.exceptions import HTTPError, Timeout, ConnectionError
+
+import re
 
 
 dic_attr_type = {
@@ -215,38 +219,88 @@ class Triple2Layer:
         return selected_geo
 
     def load_data_world(self, time):
-        QgsMessageLog.logMessage('A tarefa já está em execução.', 'Triple2Layer')
+        """Load data from a Data.world dataset using SPARQL."""
+        QgsMessageLog.logMessage('Loading data from Data.world...', 'Triple2Layer')
 
         try:
             ds = dw.query(self.dlg.lineEndpoint.text(),
                       self.sparql, query_type='sparql')
 
-            QgsMessageLog.logMessage('carregado os dados do dataworld.', 'Triple2Layer')
+            QgsMessageLog.logMessage('Data successfully loaded from Data.world.', 'Triple2Layer')
             dict = ds.dataframe.to_dict('records')
             return dict
-        except:
-            QgsMessageLog.logMessage('Fail to load from dataworld', 'Triple2Layer')
-            self.errorMessage = 'Fail to load data from dataworld: check dataset name'
+        except HTTPError as e:
+            msg = f'HTTP error while connecting to Data.world: {e}'
+            QgsMessageLog.logMessage(msg, 'Triple2Layer', level=Qgis.Critical)
+            self.errorMessage = msg
+            self.erroOnLoadLayer = True
+        except Timeout:
+            msg = 'Connection to Data.world timed out. Check your internet connection.'
+            QgsMessageLog.logMessage(msg, 'Triple2Layer', level=Qgis.Critical)
+            self.errorMessage = msg
+            self.erroOnLoadLayer = True
+        except ConnectionError as e:
+            msg = f'Could not connect to Data.world: {e}'
+            QgsMessageLog.logMessage(msg, 'Triple2Layer', level=Qgis.Critical)
+            self.errorMessage = msg
+            self.erroOnLoadLayer = True
+        except Exception as e:
+            msg = f'Unexpected error loading from Data.world: {e}'
+            QgsMessageLog.logMessage(msg, 'Triple2Layer', level=Qgis.Critical)
+            self.errorMessage = 'Fail to load data from Data.world: check dataset name and token'
             self.erroOnLoadLayer = True
 
 
     def load_triple_store(self, time):
+        """Load data from a SPARQL triple store endpoint."""
         try:
             sparql = SPARQLWrapper(self.dlg.lineEndpoint.text())
             sparql.setQuery(self.sparql)
             sparql.setReturnFormat(JSON)
             results = sparql.query().convert()
             return results["results"]["bindings"]
-        except:
-            QgsMessageLog.logMessage('Fail to load from triple store', 'Triple2Layer')
-            self.errorMessage = 'Fail to load data from triple store: check triple store endpoint'
+        except SPARQLWrapperException as e:
+            msg = f'SPARQL query error: {e}'
+            QgsMessageLog.logMessage(msg, 'Triple2Layer', level=Qgis.Critical)
+            self.errorMessage = msg
+            self.erroOnLoadLayer = True
+        except HTTPError as e:
+            msg = f'HTTP error while connecting to triple store: {e}'
+            QgsMessageLog.logMessage(msg, 'Triple2Layer', level=Qgis.Critical)
+            self.errorMessage = msg
+            self.erroOnLoadLayer = True
+        except Timeout:
+            msg = 'Connection to triple store timed out. Check the endpoint URL.'
+            QgsMessageLog.logMessage(msg, 'Triple2Layer', level=Qgis.Critical)
+            self.errorMessage = msg
+            self.erroOnLoadLayer = True
+        except Exception as e:
+            msg = f'Unexpected error loading from triple store: {e}'
+            QgsMessageLog.logMessage(msg, 'Triple2Layer', level=Qgis.Critical)
+            self.errorMessage = 'Fail to load data from triple store: check endpoint URL'
             self.erroOnLoadLayer = True
 
-    def get_value(self, row, attr, source='dw'):
-        if source == 'triple':
-            return row[attr]['value']
-        else:
-            return row[attr]
+    def get_value(self, row: dict, attr: str, source: str = 'dw'):
+        """Extract attribute value from a query result row.
+
+        Args:
+            row: A single result row (dict) from the SPARQL query.
+            attr: The attribute/variable name to extract.
+            source: Data source type — 'triple' for triple stores, 'dw' for Data.world.
+
+        Returns:
+            The attribute value as a string, or None if not found.
+        """
+        try:
+            if source == 'triple':
+                return row[attr]['value']
+            else:
+                return row[attr]
+        except KeyError:
+            QgsMessageLog.logMessage(
+                f"Attribute '{attr}' not found in result row. Available keys: {list(row.keys())}",
+                'Triple2Layer', level=Qgis.Warning)
+            return None
 
     def create_layer(self, source, time, records):
 
@@ -341,15 +395,18 @@ class Triple2Layer:
         try:
             with open(caminho, "r") as arquivo:
                 endpoints = json.load(arquivo)
-        except:
+        except (FileNotFoundError, json.JSONDecodeError):
             endpoints = {}
 
         url_ds = self.dlg.lineEndpoint.text()
-
         endpoints[source] = url_ds
-    
-        with open(caminho, "w") as arquivo:
-            json.dump(endpoints, arquivo)
+
+        try:
+            with open(caminho, "w") as arquivo:
+                json.dump(endpoints, arquivo)
+        except IOError as e:
+            QgsMessageLog.logMessage(
+                f'Could not save endpoint configuration: {e}', 'Triple2Layer', level=Qgis.Warning)
 
     def endpoint_defaut(self):
         caminho = self.buscapath()
@@ -359,7 +416,7 @@ class Triple2Layer:
                 endpoints = json.load(arquivo)
             endpoint = endpoints[source]
             self.dlg.lineEndpoint.setText(endpoint)
-        except:
+        except (FileNotFoundError, json.JSONDecodeError, KeyError):
             self.dlg.lineEndpoint.setText("")
 
     def buscapath(self):
@@ -401,8 +458,12 @@ class Triple2Layer:
                 data = file.read()
                 self.sparql = data
                 self.fill_table(data)
-        except:
-            return
+        except FileNotFoundError:
+            QgsMessageLog.logMessage(
+                f'SPARQL file not found: {self.file_name}', 'Triple2Layer', level=Qgis.Warning)
+        except IOError as e:
+            QgsMessageLog.logMessage(
+                f'Could not read SPARQL file: {e}', 'Triple2Layer', level=Qgis.Warning)
 
     def geo_selected (self,row, state):
         #self.dlg.tableAttributes.
@@ -420,37 +481,58 @@ class Triple2Layer:
         
 
     def fill_table(self, s):
+        """Parse SPARQL query variables and populate the attribute configuration table.
 
-        tokens = s.replace('\n', ' ').split(" ")
-        tokens = list(filter(lambda x: x != '', tokens))
-        print(tokens)
-        tokens_upper = list(map(lambda x: x.upper(), tokens))
-        start = tokens_upper.index('SELECT') + 1
-        end = tokens_upper.index('WHERE')
-        attributes = tokens[start:end]  # identificar os atributos
-        attributes = list(map(lambda x: x[1:], attributes))
-        print(attributes)
+        Uses a regex to extract variables from the SELECT clause, which handles
+        tabs, multiple spaces, DISTINCT/REDUCED keywords, and subqueries reliably.
+        """
+        match = re.search(r'SELECT\s+(DISTINCT\s+|REDUCED\s+)?(.*?)\s+WHERE', s, re.IGNORECASE | re.DOTALL)
+        if not match:
+            QgsMessageLog.logMessage(
+                'Could not parse SPARQL query: SELECT...WHERE clause not found.',
+                'Triple2Layer', level=Qgis.Warning)
+            self.iface.messageBar().pushMessage(
+                "Warning", "Could not parse the SPARQL file. Check the SELECT...WHERE syntax.",
+                level=Qgis.Warning, duration=5)
+            return
+
+        variables_str = match.group(2)
+
+        # Handle SELECT * wildcard
+        if variables_str.strip() == '*':
+            QgsMessageLog.logMessage(
+                'SELECT * is not supported. Please list variables explicitly.',
+                'Triple2Layer', level=Qgis.Warning)
+            self.iface.messageBar().pushMessage(
+                "Warning", "SELECT * is not supported. Please list variables explicitly.",
+                level=Qgis.Warning, duration=5)
+            return
+
+        attributes = re.findall(r'\?(\w+)', variables_str)
+
+        if not attributes:
+            QgsMessageLog.logMessage(
+                'No variables found in SELECT clause.', 'Triple2Layer', level=Qgis.Warning)
+            return
 
         self.dlg.tableAttributes.setRowCount(len(attributes))
         self.dlg.tableAttributes.setColumnCount(6)
         self.dlg.tableAttributes.setHorizontalHeaderLabels(
             ["Import?", "IDColumn?", "GeoColumn?", "Variable", "Attribute name", "Attribute type"])
 
-        start = 0
-        for attr in attributes:
-            self.dlg.tableAttributes.setCellWidget(start, 0, QCheckBox())
-            self.dlg.tableAttributes.setCellWidget(start, 1, QCheckBox())
+        for i, attr in enumerate(attributes):
+            self.dlg.tableAttributes.setCellWidget(i, 0, QCheckBox())
+            self.dlg.tableAttributes.setCellWidget(i, 1, QCheckBox())
             geo_check = QCheckBox()
-            geo_check.stateChanged.connect (partial (self.geo_selected, start))
-            self.dlg.tableAttributes.setCellWidget(start, 2, geo_check)
-            self.dlg.tableAttributes.setItem(start, 3, QTableWidgetItem(attr))
-            self.dlg.tableAttributes.setCellWidget(start, 4, QLineEdit(attr))
+            geo_check.stateChanged.connect(partial(self.geo_selected, i))
+            self.dlg.tableAttributes.setCellWidget(i, 2, geo_check)
+            self.dlg.tableAttributes.setItem(i, 3, QTableWidgetItem(attr))
+            self.dlg.tableAttributes.setCellWidget(i, 4, QLineEdit(attr))
             comboBox = QComboBox()
             comboBox.addItem("String")
             comboBox.addItem("Int")
             comboBox.addItem("Double")
-            self.dlg.tableAttributes.setCellWidget(start, 5, comboBox)
-            start += 1
+            self.dlg.tableAttributes.setCellWidget(i, 5, comboBox)
 
     def close(self):
         self.dlg.setVisible(False)
