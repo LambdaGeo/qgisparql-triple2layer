@@ -191,6 +191,12 @@ class Triple2Layer:
                 # Issue 3 - Task 4: Connect preview button if it exists in UI
                 self.dlg.buttonPreview.clicked.connect(self.preview_data)
 
+                from qgis.core import QgsCoordinateReferenceSystem
+
+                if hasattr(self.dlg, 'projectionSelector'):
+                    # Default to WGS 84
+                    self.dlg.projectionSelector.setCrs(QgsCoordinateReferenceSystem("EPSG:4326"))
+
             # 2. STATE RESET: Clear UI elements between runs to avoid data persistence (Issue 3 - Task 2)
             if hasattr(self.dlg, 'lineLayer'):
                 self.dlg.lineLayer.clear()
@@ -368,19 +374,40 @@ class Triple2Layer:
             return None
 
     def create_layer(self, source: str, time, records: list) -> None:
-            """Build a QGIS vector layer using a non-blocking progress update in the status bar.
+            """Build a QGIS vector layer with dynamic geometry and CRS detection."""
+            if not records:
+                return
 
-            Args:
-                source: Data source type — 'triple' for triple stores, 'dw' for Data.world.
-                time: Elapsed task time (provided by QgsTask).
-                records: List of result rows returned by the SPARQL query.
-            """
-            # Create the memory layer with the specified ID column
-            layer = QgsVectorLayer(
-                'Polygon?crs=epsg:4326?field=' + self.id_column,
-                self.dlg.lineLayer.text(),
-                "memory"
-            )
+            # 1. Get the first WKT to detect geometry type (Issue 4 - Task 1)
+            first_wkt = self.get_value(records[0], self.geo_column, source)
+            temp_geom = QgsGeometry.fromWkt(first_wkt)
+            
+            if temp_geom.isNull():
+                self.erroOnLoadLayer = True
+                self.errorMessage = "Invalid geometry in first record. Cannot detect layer type."
+                self.check_if_imported_layer()
+                return
+
+            # Map QgsGeometryType to QgsVectorLayer URI strings
+            # Using Qgis.GeometryType ensures compatibility with modern QGIS 3 APIs
+            type_map = {
+                Qgis.GeometryType.Point: "Point",
+                Qgis.GeometryType.Line: "LineString",
+                Qgis.GeometryType.Polygon: "Polygon"
+            }
+            geom_type_str = type_map.get(temp_geom.type(), "Unknown")
+
+            # 2. Get CRS from the UI widget (Issue 4 - Task 2)
+            # Default to EPSG:4326 if the widget is not found or not set
+            if hasattr(self.dlg, 'projectionSelector'):
+                crs_id = self.dlg.projectionSelector.crs().authid()
+            else:
+                crs_id = "EPSG:4326"
+
+            # 3. Construct the dynamic URI
+            uri = f"{geom_type_str}?crs={crs_id}&field={self.id_column}"
+            
+            layer = QgsVectorLayer(uri, self.dlg.lineLayer.text(), "memory")
             pr = layer.dataProvider()
             layer.startEditing()
             
