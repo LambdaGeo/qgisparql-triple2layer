@@ -232,12 +232,23 @@ class Triple2Layer:
             # Error message is already handled within check_attributes
             pass
 
-    def set_token(self) -> None:
-        """Prompt the user to enter a Data.world API token and store it in the environment."""
-        token, ok = QInputDialog.getText(
-            self.dlg, "Data.World Token", "Enter with token")
-        if (ok and token != ""):
-            os.environ['DW_AUTH_TOKEN'] = token
+    def set_token(self):
+            """Prompt the user for a token and save it to QGIS persistent settings."""
+            from qgis.core import QgsSettings
+            
+            token, ok = QInputDialog.getText(
+                self.dlg, "Data.world Auth", 
+                "Enter your API Token (it will be saved for future sessions):", 
+                QLineEdit.Password
+            )
+            
+            if ok and token.strip():
+                settings = QgsSettings()
+                settings.setValue("triple2layer/dw_token", token.strip())
+                os.environ['DW_AUTH_TOKEN'] = token.strip()
+                self.iface.messageBar().pushMessage(
+                    "Success", "Authentication token saved successfully.", 
+                    level=Qgis.Success, duration=3)
 
     def update_status_bar(self, progress: float) -> None:
         """Update the QGIS status bar with the current task progress.
@@ -350,6 +361,45 @@ class Triple2Layer:
             QgsMessageLog.logMessage(msg, 'Triple2Layer', level=Qgis.Critical)
             self.errorMessage = 'Fail to load data from triple store: check endpoint URL'
             self.erroOnLoadLayer = True
+
+
+    def get_dw_token(self) -> str:
+            """
+            Retrieve the Data.world token using a priority-based search:
+            1. Current environment variable (immediate session)
+            2. QGIS Settings (persistent between QGIS restarts)
+            3. Data.world CLI config file (~/.dw/config)
+            """
+            from qgis.core import QgsSettings
+            import configparser
+
+            # 1. Check if it's already in the environment
+            token = os.environ.get('DW_AUTH_TOKEN')
+            if token:
+                return token
+
+            # 2. Check QGIS Persistent Settings (Task 1)
+            settings = QgsSettings()
+            token = settings.value("triple2layer/dw_token", "")
+            if token:
+                os.environ['DW_AUTH_TOKEN'] = token
+                return token
+
+            # 3. Check for existing CLI configuration (Task 2)
+            dw_config_path = os.path.expanduser("~/.dw/config")
+            if os.path.exists(dw_config_path):
+                try:
+                    config = configparser.ConfigParser()
+                    config.read(dw_config_path)
+                    # The CLI stores the token under the 'numo' section
+                    if 'numo' in config and 'token' in config['numo']:
+                        token = config['numo']['token']
+                        os.environ['DW_AUTH_TOKEN'] = token
+                        return token
+                except Exception as e:
+                    QgsMessageLog.logMessage(f"Error reading .dw/config: {str(e)}", "Triple2Layer")
+
+            return None
 
     def get_value(self, row: dict, attr: str, source: str = 'dw'):
         """Extract attribute value from a query result row.
@@ -483,32 +533,37 @@ class Triple2Layer:
 
 
     def import_from_dataworld(self) -> None:
-            """Start an asynchronous task to import data from a Data.world dataset."""
-            if "DW_AUTH_TOKEN" not in os.environ:
+            """Start an asynchronous task to import data, checking for valid credentials first."""
+            
+            # Issue 5 - Task 2: Check for token in QSettings or CLI config before prompting
+            token = self.get_dw_token()
+            
+            if not token:
                 self.iface.messageBar().pushMessage(
                     "Authentication required", 
-                    "Data.world token not set. Please enter your API token.",
+                    "No Data.world token found. Please enter your API token to proceed.",
                     level=Qgis.Warning, duration=5
                 )
+                # This will prompt the user and save the token for future sessions (Task 1)
                 self.set_token()
-                return # Exit early if no token is found
+                return # Exit early so the user can try again after entering the token
 
-            QgsMessageLog.logMessage('Creating Data.world import task...', 'Triple2Layer')
+            # If we reach here, the token is already set in os.environ by get_dw_token()
+            QgsMessageLog.logMessage('Starting Data.world import task...', 'Triple2Layer')
             
             # 1. Create the task
             self.task = QgsTask.fromFunction(
-                'Importing a layer', 
+                'Importing a layer from Data.world', 
                 self.load_data_world,
                 on_finished=partial(self.create_layer, 'dw')
             )
 
-            # 2. Connect signals (Task 3 - Progress Feedback)
+            # 2. Connect signals (Task 3 from Issue 3 - Progress Feedback)
             self.task.progressChanged.connect(self.update_status_bar)
             self.task.taskCompleted.connect(self.check_if_imported_layer)
             
-            # 3. Add to manager only once
+            # 3. Add to the QGIS Task Manager
             QgsApplication.taskManager().addTask(self.task)
-            
 
     def preview_data(self) -> None:
             """Run the SPARQL query with a LIMIT 5 to preview results without a full import."""
@@ -521,6 +576,18 @@ class Triple2Layer:
                     "Preview Error", "Please provide an endpoint and load a SPARQL file first.",
                     level=Qgis.Warning, duration=5)
                 return
+
+            # ISSUE 5 FIX: Check for token if source is Data.world
+            if source != "Triple Store Endpoint":
+                token = self.get_dw_token()
+                if not token:
+                    self.iface.messageBar().pushMessage(
+                        "Authentication required", 
+                        "No Data.world token found. Please enter your API token to preview.",
+                        level=Qgis.Warning, duration=5
+                    )
+                    self.set_token()
+                    return
 
             # Issue 3 - Task 4: Append LIMIT 5 for a quick connectivity check
             preview_query = f"{self.sparql}\nLIMIT 5"
@@ -551,15 +618,6 @@ class Triple2Layer:
                         level=Qgis.Info, duration=10)
                 else:
                     self.iface.messageBar().pushMessage(
-                        "Preview", "The query executed successfully but returned no results.", 
-                        level=Qgis.Warning, duration=5)
-
-            except Exception as e:
-                self.iface.mainWindow().statusBar().clearMessage()
-                self.iface.messageBar().pushMessage(
-                    "Preview Failed", f"Error connecting to source: {str(e)}", 
-                    level=Qgis.Critical, duration=8)
-                self.iface.messageBar().pushMessage(
                         "Preview", "The query executed successfully but returned no results.", 
                         level=Qgis.Warning, duration=5)
 
