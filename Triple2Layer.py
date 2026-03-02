@@ -627,14 +627,24 @@ class Triple2Layer:
                     "Preview Failed", f"Error connecting to source: {str(e)}", 
                     level=Qgis.Critical, duration=8)
 
+    def get_endpoint_path(self) -> str:
+            """Return the path to the endpoint configuration in the user's QGIS profile."""
+            from qgis.core import QgsApplication
+            # Issue 5 - Task 3: Use the QGIS profile directory (writable)
+            config_dir = QgsApplication.qgisSettingsDirPath()
+            return os.path.join(config_dir, "triple2layer_endpoints.json")
+
     def save_endpoint(self) -> None:
-        """Persist the current endpoint URL to the endpoint configuration file."""
+        """Persist the current endpoint URL to the user's QGIS profile."""
         path = self.get_endpoint_path()
         source = self.dlg.comboSourceType.currentText()
         try:
-            with open(path, "r") as f:
-                endpoints = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
+            if os.path.exists(path):
+                with open(path, "r") as f:
+                    endpoints = json.load(f)
+            else:
+                endpoints = {}
+        except json.JSONDecodeError:
             endpoints = {}
 
         endpoints[source] = self.dlg.lineEndpoint.text()
@@ -647,23 +657,19 @@ class Triple2Layer:
                 f'Could not save endpoint configuration: {e}', 'Triple2Layer', level=Qgis.Warning)
 
     def endpoint_defaut(self) -> None:
-        """Load the last used endpoint URL for the selected source type."""
+        """Load the last used endpoint URL from the user's QGIS profile."""
         path = self.get_endpoint_path()
         source = self.dlg.comboSourceType.currentText()
         try:
-            with open(path, "r") as f:
-                endpoints = json.load(f)
-            self.dlg.lineEndpoint.setText(endpoints[source])
-        except (FileNotFoundError, json.JSONDecodeError, KeyError):
+            if os.path.exists(path):
+                with open(path, "r") as f:
+                    endpoints = json.load(f)
+                self.dlg.lineEndpoint.setText(endpoints.get(source, ""))
+            else:
+                self.dlg.lineEndpoint.setText("")
+        except (json.JSONDecodeError, KeyError):
             self.dlg.lineEndpoint.setText("")
 
-    def get_endpoint_path(self) -> str:
-        """Return the path to the endpoint configuration JSON file.
-
-        Returns:
-            Absolute path to endpoint.json inside the plugin directory.
-        """
-        return os.path.join(os.path.dirname(__file__), "endpoint.json")
 
     def import_from_triple(self) -> None:
             """Start an asynchronous task to import data from a SPARQL triple store."""
