@@ -1,47 +1,40 @@
 # This file contains metadata for your plugin.
-
-# This file should be included when you package your plugin.# Mandatory items:
+# This file should be included when you package your plugin.
 
 [general]
 name=Triple2Layer
-qgisMinimumVersion=3.0
-description=this plugin imports data
-version=0.1
+qgisMinimumVersion=3.4
+description=Import geographic data from SPARQL endpoints and data.world into QGIS vector layers.
+version=0.2.1
 author=Sérgio Costa
 email=sergio.costa@ufma.br
 
-maintener=Nerval Junior 
+maintainer=Sérgio Costa
+maintainerEmail=sergio.costa@ufma.br
 
-about=This plugin create a layer from linked data retrieved from a triple store or data.world.
+about=Triple2Layer bridges the gap between the Semantic Web and GIS by allowing users to execute SPARQL queries and import results as native QGIS layers (Points, Lines, Polygons) from WKT data.
 
 tracker=https://github.com/LambdaGeo/qgisparql-triple2layer/issues
 repository=https://github.com/LambdaGeo/qgisparql-triple2layer.git
-# End of mandatory metadata
 
 # Recommended items:
-
 hasProcessingProvider=no
-# Uncomment the following line and add your changelog:
-# changelog=
+
+# Changelog
+changelog=v0.2.1: Major refactoring for JOSS submission. Added asynchronous tasks (QgsTask), dynamic geometry detection, CRS selection, and improved error handling.
 
 # Tags are comma separated with spaces allowed
-tags=analysis, database, export, import, layers, wkt
+tags=sparql, rdf, linked data, geosparql, wkt, semantic web, database
 
-homepage=https://profsergiocosta.notion.site/QGISSPARQL-Triple2Layer-214a16da7cc44934847e414e06905bee
+homepage=https://github.com/LambdaGeo/qgisparql-triple2layer
 category=Vector
 icon=icon.png
-# experimental flag
-experimental=True
 
-# deprecated flag (applies to the whole plugin, not just a single version)
+# Experimental flag - Set to False for stable scientific submission
+experimental=False
+
+# Deprecated flag
 deprecated=False
-
-# Since QGIS 3.8, a comma separated list of plugins to be installed
-# (or upgraded) can be specified.
-# Check the documentation for more information.
-# plugin_dependencies=
-
 
 # If the plugin can run on QGIS Server.
 server=False
-
