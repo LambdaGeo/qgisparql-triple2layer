@@ -172,35 +172,58 @@ class Triple2Layer:
             self.iface.removeToolBarIcon(action)
 
     def run(self):
-        """Run method that performs all the real work"""
+            """Run method that performs all the real work and manages dialog state."""
 
-        # Create the dialog with elements (after translation) and keep reference
-        # Only create GUI ONCE in callback, so that it will only load when the plugin is started
-        if self.first_start == True:
-            self.first_start = False
-            self.dlg = Triple2LayerDialog()
-            self.file_name = None
+            # 1. INITIALIZATION: Setup dialog and signal connections (only once per session)
+            if self.first_start == True:
+                self.first_start = False
+                self.dlg = Triple2LayerDialog()
+                self.file_name = None
+                
+                # Setup button connections
+                self.dlg.pushButton.clicked.connect(self.execute)
+                self.dlg.button_box.rejected.connect(self.close)
+                self.dlg.buttonSPARQL.clicked.connect(self.open_sparql)
+                self.dlg.actionToken.triggered.connect(self.set_token)
+                self.dlg.comboSourceType.textActivated.connect(self.endpoint_defaut)
+                
+                # Issue 3 - Task 4: Connect preview button if it exists in UI
+                self.dlg.buttonPreview.clicked.connect(self.preview_data)
+
+            # 2. STATE RESET: Clear UI elements between runs to avoid data persistence (Issue 3 - Task 2)
+            if hasattr(self.dlg, 'lineLayer'):
+                self.dlg.lineLayer.clear()
+                self.dlg.lineSPARQL.clear()
+                
+            if hasattr(self.dlg, 'tableAttributes'):
+                self.dlg.tableAttributes.setRowCount(0)
+                
+            # Ensure the default endpoint is loaded for the current source type
             self.endpoint_defaut()
-            self.dlg.pushButton.clicked.connect(self.execute)
-            self.dlg.button_box.rejected.connect(self.close)
-            self.dlg.buttonSPARQL.clicked.connect(self.open_sparql)
-            self.dlg.actionToken.triggered.connect(self.set_token)
-            self.dlg.comboSourceType.textActivated.connect(
-                self.endpoint_defaut)
 
-        # show the dialog
-        self.dlg.show()
+            # Display the dialog
+            self.dlg.show()
 
 
     def execute(self) -> None:
-        """Validate attributes and trigger the layer import process."""
+        """Validate input fields and initiate the import task."""
+        
+        # Issue 3 - Task 1: Layer name validation
+        layer_name = self.dlg.lineLayer.text().strip()
+        if not layer_name:
+            self.iface.messageBar().pushMessage(
+                "Missing Input", 
+                "Please enter a valid layer name before starting the import.",
+                level=Qgis.Warning, duration=5)
+            return
+
+        # Proceed with attribute check and import
         if self.check_attributes():
             self.save_endpoint()
             self.import_layer()
         else:
-            self.erroOnLoadLayer = True
-            self.errorMessage = "No geometry attribute selected. Please mark one column as GeoColumn."
-            self.check_if_imported_layer()
+            # Error message is already handled within check_attributes
+            pass
 
     def set_token(self) -> None:
         """Prompt the user to enter a Data.world API token and store it in the environment."""
@@ -458,6 +481,65 @@ class Triple2Layer:
             # 3. Add to manager only once
             QgsApplication.taskManager().addTask(self.task)
             
+
+    def preview_data(self) -> None:
+            """Run the SPARQL query with a LIMIT 5 to preview results without a full import."""
+            source = self.dlg.comboSourceType.currentText()
+            endpoint = self.dlg.lineEndpoint.text()
+
+            # Check if the mandatory fields are populated
+            if not endpoint or not hasattr(self, 'sparql'):
+                self.iface.messageBar().pushMessage(
+                    "Preview Error", "Please provide an endpoint and load a SPARQL file first.",
+                    level=Qgis.Warning, duration=5)
+                return
+
+            # Issue 3 - Task 4: Append LIMIT 5 for a quick connectivity check
+            preview_query = f"{self.sparql}\nLIMIT 5"
+            
+            # Show activity in the status bar
+            self.iface.mainWindow().statusBar().showMessage("Fetching preview data...")
+
+            try:
+                if source == "Triple Store Endpoint":
+                    # Triple Store Preview
+                    sparql = SPARQLWrapper(endpoint)
+                    sparql.setQuery(preview_query)
+                    sparql.setReturnFormat(JSON)
+                    records = sparql.query().convert()["results"]["bindings"]
+                else:
+                    # Data.world Preview
+                    ds = dw.query(endpoint, preview_query, query_type='sparql')
+                    records = ds.dataframe.to_dict('records')
+
+                self.iface.mainWindow().statusBar().clearMessage()
+
+                if records:
+                    # Get a small sample of the first record to show success
+                    sample = str(records[0])[:150]
+                    self.iface.messageBar().pushMessage(
+                        "Preview Success", 
+                        f"Connection established! Found {len(records)} sample rows. Sample: {sample}...",
+                        level=Qgis.Info, duration=10)
+                else:
+                    self.iface.messageBar().pushMessage(
+                        "Preview", "The query executed successfully but returned no results.", 
+                        level=Qgis.Warning, duration=5)
+
+            except Exception as e:
+                self.iface.mainWindow().statusBar().clearMessage()
+                self.iface.messageBar().pushMessage(
+                    "Preview Failed", f"Error connecting to source: {str(e)}", 
+                    level=Qgis.Critical, duration=8)
+                self.iface.messageBar().pushMessage(
+                        "Preview", "The query executed successfully but returned no results.", 
+                        level=Qgis.Warning, duration=5)
+
+            except Exception as e:
+                self.iface.mainWindow().statusBar().clearMessage()
+                self.iface.messageBar().pushMessage(
+                    "Preview Failed", f"Error connecting to source: {str(e)}", 
+                    level=Qgis.Critical, duration=8)
 
     def save_endpoint(self) -> None:
         """Persist the current endpoint URL to the endpoint configuration file."""
