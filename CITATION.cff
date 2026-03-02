@@ -10,12 +10,13 @@ authors:
     affiliation: "Universidade Federal do Maranhão (UFMA)"
   - family-names: "Junior"
     given-names: "Nerval"
+    orcid: 0009-0000-2339-3191
     email: nerval1@hotmail.com
-    affiliation: "Universidade Federal do Maranhão (UFMA)"
+    affiliation: "Universidade Federal o Maranhão (UFMA)"
 repository-code: "https://github.com/LambdaGeo/qgisparql-triple2layer"
 license: GPL-2.0
-version: "0.1"
-date-released: "2023-01-22"
+version: "0.2.1"
+date-released: "2026-03-02"
 keywords:
   - QGIS
   - SPARQL
