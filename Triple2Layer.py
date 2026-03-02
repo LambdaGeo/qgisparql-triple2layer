@@ -172,35 +172,58 @@ class Triple2Layer:
             self.iface.removeToolBarIcon(action)
 
     def run(self):
-        """Run method that performs all the real work"""
+            """Run method that performs all the real work and manages dialog state."""
 
-        # Create the dialog with elements (after translation) and keep reference
-        # Only create GUI ONCE in callback, so that it will only load when the plugin is started
-        if self.first_start == True:
-            self.first_start = False
-            self.dlg = Triple2LayerDialog()
-            self.file_name = None
+            # 1. INITIALIZATION: Setup dialog and signal connections (only once per session)
+            if self.first_start == True:
+                self.first_start = False
+                self.dlg = Triple2LayerDialog()
+                self.file_name = None
+                
+                # Setup button connections
+                self.dlg.pushButton.clicked.connect(self.execute)
+                self.dlg.button_box.rejected.connect(self.close)
+                self.dlg.buttonSPARQL.clicked.connect(self.open_sparql)
+                self.dlg.actionToken.triggered.connect(self.set_token)
+                self.dlg.comboSourceType.textActivated.connect(self.endpoint_defaut)
+                
+                # Issue 3 - Task 4: Connect preview button if it exists in UI
+                self.dlg.buttonPreview.clicked.connect(self.preview_data)
+
+            # 2. STATE RESET: Clear UI elements between runs to avoid data persistence (Issue 3 - Task 2)
+            if hasattr(self.dlg, 'lineLayer'):
+                self.dlg.lineLayer.clear()
+                self.dlg.lineSPARQL.clear()
+                
+            if hasattr(self.dlg, 'tableAttributes'):
+                self.dlg.tableAttributes.setRowCount(0)
+                
+            # Ensure the default endpoint is loaded for the current source type
             self.endpoint_defaut()
-            self.dlg.pushButton.clicked.connect(self.execute)
-            self.dlg.button_box.rejected.connect(self.close)
-            self.dlg.buttonSPARQL.clicked.connect(self.open_sparql)
-            self.dlg.actionToken.triggered.connect(self.set_token)
-            self.dlg.comboSourceType.textActivated.connect(
-                self.endpoint_defaut)
 
-        # show the dialog
-        self.dlg.show()
+            # Display the dialog
+            self.dlg.show()
 
 
     def execute(self) -> None:
-        """Validate attributes and trigger the layer import process."""
+        """Validate input fields and initiate the import task."""
+        
+        # Issue 3 - Task 1: Layer name validation
+        layer_name = self.dlg.lineLayer.text().strip()
+        if not layer_name:
+            self.iface.messageBar().pushMessage(
+                "Missing Input", 
+                "Please enter a valid layer name before starting the import.",
+                level=Qgis.Warning, duration=5)
+            return
+
+        # Proceed with attribute check and import
         if self.check_attributes():
             self.save_endpoint()
             self.import_layer()
         else:
-            self.erroOnLoadLayer = True
-            self.errorMessage = "No geometry attribute selected. Please mark one column as GeoColumn."
-            self.check_if_imported_layer()
+            # Error message is already handled within check_attributes
+            pass
 
     def set_token(self) -> None:
         """Prompt the user to enter a Data.world API token and store it in the environment."""
@@ -208,6 +231,20 @@ class Triple2Layer:
             self.dlg, "Data.World Token", "Enter with token")
         if (ok and token != ""):
             os.environ['DW_AUTH_TOKEN'] = token
+
+    def update_status_bar(self, progress: float) -> None:
+        """Update the QGIS status bar with the current task progress.
+
+        Args:
+            progress: Current progress percentage (0 to 100).
+        """
+        # Shows a message in the bottom-left corner of QGIS
+        self.iface.mainWindow().statusBar().showMessage(
+            f"Triple2Layer: Importing features... {int(progress)}%"
+        )
+        # Clear the message when it reaches 100%
+        if progress >= 100:
+            self.iface.mainWindow().statusBar().clearMessage()
 
     def check_attributes(self) -> bool:
         """Read the attribute table and store the user's column configuration.
@@ -330,69 +367,81 @@ class Triple2Layer:
             return None
 
     def create_layer(self, source: str, time, records: list) -> None:
-        """Build a QGIS vector layer from SPARQL query results and add it to the project.
+            """Build a QGIS vector layer using a non-blocking progress update in the status bar.
 
-        Args:
-            source: Data source type — 'triple' for triple stores, 'dw' for Data.world.
-            time: Elapsed task time (provided by QgsTask, not used directly).
-            records: List of result rows returned by the SPARQL query.
-        """
-        layer = QgsVectorLayer(
-            'Polygon?crs=epsg:4326?field=' + self.id_column,
-            self.dlg.lineLayer.text(),
-            "memory"
-        )
-        pr = layer.dataProvider()
-        layer.startEditing()
-        attributes = [QgsField(x[0], x[1]) for x in self.saveAttrs]
-        pr.addAttributes(attributes)
-        layer.updateFields()
+            Args:
+                source: Data source type — 'triple' for triple stores, 'dw' for Data.world.
+                time: Elapsed task time (provided by QgsTask).
+                records: List of result rows returned by the SPARQL query.
+            """
+            # Create the memory layer with the specified ID column
+            layer = QgsVectorLayer(
+                'Polygon?crs=epsg:4326?field=' + self.id_column,
+                self.dlg.lineLayer.text(),
+                "memory"
+            )
+            pr = layer.dataProvider()
+            layer.startEditing()
+            
+            # Add attributes defined in the UI table
+            attributes = [QgsField(x[0], x[1]) for x in self.saveAttrs]
+            pr.addAttributes(attributes)
+            layer.updateFields()
 
-        features = []
-        total = len(records)
+            features = []
+            total = len(records)
 
-        # Validate geometry attribute before processing all records
-        geom = QgsGeometry.fromWkt(self.get_value(records[0], self.geo_column, source))
-        QgsMessageLog.logMessage(f'First geometry: {geom.asWkt()[:80]}', 'Triple2Layer')
-        if geom.isNull():
-            self.erroOnLoadLayer = True
-            self.errorMessage = "Invalid geometry attribute. Select a column containing WKT values."
-            self.check_if_imported_layer()
-            return
+            if total == 0:
+                QgsMessageLog.logMessage('No records to import.', 'Triple2Layer', level=Qgis.Warning)
+                return
 
-        QgsMessageLog.logMessage(
-            f'Building layer with {total} features...', 'Triple2Layer')
+            # Validate geometry attribute of the first record
+            first_geom_wkt = self.get_value(records[0], self.geo_column, source)
+            geom = QgsGeometry.fromWkt(first_geom_wkt)
+            
+            if geom.isNull():
+                self.erroOnLoadLayer = True
+                self.errorMessage = "Invalid geometry attribute. Please select a column with valid WKT."
+                self.check_if_imported_layer()
+                return
 
-        progressDialog = QProgressDialog(
-            "Importing layer...", "Cancel", 0, 0, self.iface.mainWindow())
-        progressDialog.setWindowTitle("Importing layer")
-        progressDialog.setLabelText("Importing features...")
-        progressDialog.setMaximum(total)
-        progressDialog.setValue(0)
-        progressDialog.show()
-        progressDialog.setCancelButton(None)
+            QgsMessageLog.logMessage(f'Importing {total} features into layer...', 'Triple2Layer')
 
-        for i, row in enumerate(records):
-            fet = QgsFeature()
-            geom = QgsGeometry.fromWkt(self.get_value(row, self.geo_column, source))
-            fet.setGeometry(geom)
-            attrs = [self.get_value(row, attr[2], source) for attr in self.saveAttrs]
-            fet.setAttributes(attrs)
-            features.append(fet)
-            progressDialog.setValue(i + 1)
-            progressDialog.setLabelText("Importing feature {} of {}".format(i + 1, total))
-            QCoreApplication.processEvents()
+            # Task 3: Iterating through records and updating the status bar instead of a modal dialog
+            for i, row in enumerate(records):
+                fet = QgsFeature()
+                wkt_value = self.get_value(row, self.geo_column, source)
+                fet.setGeometry(QgsGeometry.fromWkt(wkt_value))
+                
+                attrs = [self.get_value(row, attr[2], source) for attr in self.saveAttrs]
+                fet.setAttributes(attrs)
+                features.append(fet)
 
-        layer.addFeatures(features)
-        layer.updateExtents()
-        layer.commitChanges()
-        QgsProject.instance().addMapLayer(layer)
+                # Update progress status every 20 features to maintain UI responsiveness
+                if i % 20 == 0 or i == total - 1:
+                    progress_percent = ((i + 1) / total) * 100
+                    self.update_status_bar(progress_percent)
+                    # Allow QGIS to process UI events (prevents freezing)
+                    QCoreApplication.processEvents()
 
-        progressDialog.close()
+            # Finalize the layer setup
+            layer.addFeatures(features)
+            layer.updateExtents()
+            layer.commitChanges()
+            QgsProject.instance().addMapLayer(layer)
 
-        self.iface.messageBar().pushMessage(
-            "Success", "Imported layer",
-            level=Qgis.Success, duration=3)
+            self.iface.messageBar().pushMessage(
+                "Success", f"Layer '{layer.name()}' imported successfully.",
+                level=Qgis.Success, duration=3)
+            # Finalize the layer setup
+            layer.addFeatures(features)
+            layer.updateExtents()
+            layer.commitChanges()
+            QgsProject.instance().addMapLayer(layer)
+
+            self.iface.messageBar().pushMessage(
+                "Success", f"Layer '{layer.name()}' imported successfully.",
+                level=Qgis.Success, duration=3)
         
 
     def check_if_imported_layer(self) -> None:
@@ -406,20 +455,91 @@ class Triple2Layer:
 
 
     def import_from_dataworld(self) -> None:
-        """Start an asynchronous task to import data from a Data.world dataset."""
-        if "DW_AUTH_TOKEN" not in os.environ:
-            self.iface.messageBar().pushMessage(
-                "Authentication required", "Data.world token not set. Please enter your API token.",
-                level=Qgis.Warning, duration=5
-            )
-            self.set_token()
-        else:
+            """Start an asynchronous task to import data from a Data.world dataset."""
+            if "DW_AUTH_TOKEN" not in os.environ:
+                self.iface.messageBar().pushMessage(
+                    "Authentication required", 
+                    "Data.world token not set. Please enter your API token.",
+                    level=Qgis.Warning, duration=5
+                )
+                self.set_token()
+                return # Exit early if no token is found
+
             QgsMessageLog.logMessage('Creating Data.world import task...', 'Triple2Layer')
+            
+            # 1. Create the task
             self.task = QgsTask.fromFunction(
-                'Importing a layer', self.load_data_world,
-                on_finished=partial(self.create_layer, 'dw'))
+                'Importing a layer', 
+                self.load_data_world,
+                on_finished=partial(self.create_layer, 'dw')
+            )
+
+            # 2. Connect signals (Task 3 - Progress Feedback)
+            self.task.progressChanged.connect(self.update_status_bar)
             self.task.taskCompleted.connect(self.check_if_imported_layer)
+            
+            # 3. Add to manager only once
             QgsApplication.taskManager().addTask(self.task)
+            
+
+    def preview_data(self) -> None:
+            """Run the SPARQL query with a LIMIT 5 to preview results without a full import."""
+            source = self.dlg.comboSourceType.currentText()
+            endpoint = self.dlg.lineEndpoint.text()
+
+            # Check if the mandatory fields are populated
+            if not endpoint or not hasattr(self, 'sparql'):
+                self.iface.messageBar().pushMessage(
+                    "Preview Error", "Please provide an endpoint and load a SPARQL file first.",
+                    level=Qgis.Warning, duration=5)
+                return
+
+            # Issue 3 - Task 4: Append LIMIT 5 for a quick connectivity check
+            preview_query = f"{self.sparql}\nLIMIT 5"
+            
+            # Show activity in the status bar
+            self.iface.mainWindow().statusBar().showMessage("Fetching preview data...")
+
+            try:
+                if source == "Triple Store Endpoint":
+                    # Triple Store Preview
+                    sparql = SPARQLWrapper(endpoint)
+                    sparql.setQuery(preview_query)
+                    sparql.setReturnFormat(JSON)
+                    records = sparql.query().convert()["results"]["bindings"]
+                else:
+                    # Data.world Preview
+                    ds = dw.query(endpoint, preview_query, query_type='sparql')
+                    records = ds.dataframe.to_dict('records')
+
+                self.iface.mainWindow().statusBar().clearMessage()
+
+                if records:
+                    # Get a small sample of the first record to show success
+                    sample = str(records[0])[:150]
+                    self.iface.messageBar().pushMessage(
+                        "Preview Success", 
+                        f"Connection established! Found {len(records)} sample rows. Sample: {sample}...",
+                        level=Qgis.Info, duration=10)
+                else:
+                    self.iface.messageBar().pushMessage(
+                        "Preview", "The query executed successfully but returned no results.", 
+                        level=Qgis.Warning, duration=5)
+
+            except Exception as e:
+                self.iface.mainWindow().statusBar().clearMessage()
+                self.iface.messageBar().pushMessage(
+                    "Preview Failed", f"Error connecting to source: {str(e)}", 
+                    level=Qgis.Critical, duration=8)
+                self.iface.messageBar().pushMessage(
+                        "Preview", "The query executed successfully but returned no results.", 
+                        level=Qgis.Warning, duration=5)
+
+            except Exception as e:
+                self.iface.mainWindow().statusBar().clearMessage()
+                self.iface.messageBar().pushMessage(
+                    "Preview Failed", f"Error connecting to source: {str(e)}", 
+                    level=Qgis.Critical, duration=8)
 
     def save_endpoint(self) -> None:
         """Persist the current endpoint URL to the endpoint configuration file."""
@@ -460,12 +580,22 @@ class Triple2Layer:
         return os.path.join(os.path.dirname(__file__), "endpoint.json")
 
     def import_from_triple(self) -> None:
-        """Start an asynchronous task to import data from a SPARQL triple store."""
-        QgsMessageLog.logMessage('Creating triple store import task...', 'Triple2Layer')
-        self.task = QgsTask.fromFunction(
-            'Importing a layer', self.load_triple_store, on_finished=partial(self.create_layer, 'triple'))
-        self.task.taskCompleted.connect(self.check_if_imported_layer)
-        QgsApplication.taskManager().addTask(self.task)
+            """Start an asynchronous task to import data from a SPARQL triple store."""
+            QgsMessageLog.logMessage('Creating triple store import task...', 'Triple2Layer')
+            
+            # 1. Create the task object
+            self.task = QgsTask.fromFunction(
+                'Importing a layer', 
+                self.load_triple_store, 
+                on_finished=partial(self.create_layer, 'triple')
+            )
+
+            # 2. Connect signals BEFORE adding to the manager (Task 3 - Progress Feedback)
+            self.task.progressChanged.connect(self.update_status_bar)
+            self.task.taskCompleted.connect(self.check_if_imported_layer)
+            
+            # 3. Add to the Task Manager (only once!)
+            QgsApplication.taskManager().addTask(self.task)
 
     def import_layer(self) -> None:
         """Route the import to the correct data source based on the user's selection."""

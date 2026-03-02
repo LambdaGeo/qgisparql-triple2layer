@@ -212,6 +212,13 @@
          </spacer>
         </item>
         <item>
+         <widget class="QPushButton" name="buttonPreview">
+          <property name="text">
+           <string>Preview</string>
+          </property>
+         </widget>
+        </item>
+        <item>
          <widget class="QPushButton" name="pushButton">
           <property name="enabled">
            <bool>false</bool>
@@ -258,7 +265,7 @@
      <x>0</x>
      <y>0</y>
      <width>596</width>
-     <height>22</height>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuSettings">
