@@ -21,11 +21,12 @@
  *                                                                         *
  ***************************************************************************/
 """
-from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, QVariant
+from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, QVariant, Qt
 from qgis.PyQt.QtGui import QIcon
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QProgressDialog
-from qgis.PyQt.QtWidgets import QAction, QComboBox, QCheckBox, QLineEdit, QTableWidgetItem, QFileDialog, QInputDialog
+from qgis.PyQt.QtWidgets import (
+    QAction, QComboBox, QCheckBox, QLineEdit,
+    QTableWidgetItem, QFileDialog, QInputDialog, QProgressDialog
+)
 from qgis.core import QgsVectorLayer, QgsField, QgsGeometry, QgsFeature, QgsProject,  Qgis, QgsTask, QgsTaskManager, QgsApplication, QgsMessageLog
 
 # Initialize Qt resources from file resources.py
@@ -38,7 +39,6 @@ import os
 
 from functools import partial
 
-plugin_dir = os.path.dirname(__file__)
 
 from SPARQLWrapper import SPARQLWrapper, JSON, N3
 from SPARQLWrapper.SPARQLExceptions import SPARQLWrapperException
@@ -48,6 +48,7 @@ from requests.exceptions import HTTPError, Timeout, ConnectionError
 
 import re
 
+plugin_dir = os.path.dirname(__file__) 
 
 dic_attr_type = {
     "String": QVariant.String,
@@ -56,14 +57,16 @@ dic_attr_type = {
 }
 
 
-path_plugin = os.path.dirname(__file__)
-path_file = os.path.join(path_plugin, "endpoint.json")
-
-
 class Triple2Layer:
     """QGIS Plugin Implementation."""
 
-    def __init__(self, iface):
+    def __init__(self, iface) -> None:
+        """Initialize the Triple2Layer plugin.
+
+        Args:
+            iface: A QGIS interface instance providing the hook to manipulate
+                   the QGIS application at runtime.
+        """
         # Save reference to the QGIS interface
         self.iface = iface
         # initialize plugin directory
@@ -86,6 +89,7 @@ class Triple2Layer:
         # Check if plugin was started the first time in current QGIS session
         # Must be set in initGui() to survive plugin reloads
         self.first_start = None
+        
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -94,15 +98,33 @@ class Triple2Layer:
 
     def add_action(
             self,
-            icon_path,
-            text,
+            icon_path: str,
+            text: str,
             callback,
-            enabled_flag=True,
-            add_to_menu=True,
-            add_to_toolbar=True,
-            status_tip=None,
-            whats_this=None,
-            parent=None):
+            enabled_flag: bool = True,
+            add_to_menu: bool = True,
+            add_to_toolbar: bool = True,
+            status_tip: str = None,
+            whats_this: str = None,
+            parent=None) -> QAction:
+        """Add a toolbar icon and menu entry for the plugin.
+
+        Args:
+            icon_path: Path to the icon for this action.
+            text: Text that should be shown in menu items for this action.
+            callback: Function to be called when the action is triggered.
+            enabled_flag: A flag indicating if the action should be enabled.
+            add_to_menu: Flag indicating whether the action should be added to the menu.
+            add_to_toolbar: Flag indicating whether the action should be added to the toolbar.
+            status_tip: Optional text to show in a popup when the mouse pointer
+                        hovers over the action.
+            whats_this: Optional text to show in the status bar when the mouse
+                        pointer hovers over the action.
+            parent: Parent widget for the new action.
+
+        Returns:
+            The action that was created.
+        """
 
         icon = QIcon(icon_path)
         action = QAction(icon, text, parent)
@@ -170,24 +192,29 @@ class Triple2Layer:
         self.dlg.show()
 
 
-    def execute(self):
+    def execute(self) -> None:
+        """Validate attributes and trigger the layer import process."""
         if self.check_attributes():
             self.save_endpoint()
             self.import_layer()
         else:
             self.erroOnLoadLayer = True
-            self.errorMessage = "Select the geo atribute"
+            self.errorMessage = "No geometry attribute selected. Please mark one column as GeoColumn."
             self.check_if_imported_layer()
-            print ("erroor")
 
-    def set_token(self):
-
+    def set_token(self) -> None:
+        """Prompt the user to enter a Data.world API token and store it in the environment."""
         token, ok = QInputDialog.getText(
             self.dlg, "Data.World Token", "Enter with token")
         if (ok and token != ""):
             os.environ['DW_AUTH_TOKEN'] = token
 
-    def check_attributes(self):
+    def check_attributes(self) -> bool:
+        """Read the attribute table and store the user's column configuration.
+
+        Returns:
+            True if a geometry column has been selected, False otherwise.
+        """
         selected_geo = False
 
         self.geo_column = ""
@@ -215,7 +242,7 @@ class Triple2Layer:
             if check.isChecked() or check_id.isChecked():
                 self.saveAttrs.append(
                     (attr_name, dic_attr_type[combo_type.currentText()], var_name))
-        print ("check", selected_geo)
+
         return selected_geo
 
     def load_data_world(self, time):
@@ -302,32 +329,39 @@ class Triple2Layer:
                 'Triple2Layer', level=Qgis.Warning)
             return None
 
-    def create_layer(self, source, time, records):
+    def create_layer(self, source: str, time, records: list) -> None:
+        """Build a QGIS vector layer from SPARQL query results and add it to the project.
 
-        layer = QgsVectorLayer('Polygon?crs=epsg:4326?field=' +
-                               self.id_column, self.dlg.lineLayer.text(), "memory")
+        Args:
+            source: Data source type — 'triple' for triple stores, 'dw' for Data.world.
+            time: Elapsed task time (provided by QgsTask, not used directly).
+            records: List of result rows returned by the SPARQL query.
+        """
+        layer = QgsVectorLayer(
+            'Polygon?crs=epsg:4326?field=' + self.id_column,
+            self.dlg.lineLayer.text(),
+            "memory"
+        )
         pr = layer.dataProvider()
         layer.startEditing()
-        # não funcionou com o map ???
         attributes = [QgsField(x[0], x[1]) for x in self.saveAttrs]
         pr.addAttributes(attributes)
         layer.updateFields()
 
         features = []
-        i = 0
-        total = 0
         total = len(records)
-        #verifica se o atributo de geometria esta correto
-        geom = QgsGeometry.fromWkt( self.get_value(records[0], self.geo_column, source))
-        print ("geommmmmm", geom)
+
+        # Validate geometry attribute before processing all records
+        geom = QgsGeometry.fromWkt(self.get_value(records[0], self.geo_column, source))
+        QgsMessageLog.logMessage(f'First geometry: {geom.asWkt()[:80]}', 'Triple2Layer')
         if geom.isNull():
             self.erroOnLoadLayer = True
-            self.errorMessage = "Invalid geometry attribute, select a wkt attribute value"
+            self.errorMessage = "Invalid geometry attribute. Select a column containing WKT values."
             self.check_if_imported_layer()
             return
 
         QgsMessageLog.logMessage(
-            'A tarefa já está concluindo. '+str(time) + "-" + str(total), 'Triple2Layer')
+            f'Building layer with {total} features...', 'Triple2Layer')
 
         progressDialog = QProgressDialog(
             "Importing layer...", "Cancel", 0, 0, self.iface.mainWindow())
@@ -338,20 +372,15 @@ class Triple2Layer:
         progressDialog.show()
         progressDialog.setCancelButton(None)
 
-        for row in records:
+        for i, row in enumerate(records):
             fet = QgsFeature()
-            geom = QgsGeometry.fromWkt(
-                self.get_value(row, self.geo_column, source))
+            geom = QgsGeometry.fromWkt(self.get_value(row, self.geo_column, source))
             fet.setGeometry(geom)
-            attrs = []
-            for attr in self.saveAttrs:
-                attrs.append(self.get_value(row, attr[2], source))
+            attrs = [self.get_value(row, attr[2], source) for attr in self.saveAttrs]
             fet.setAttributes(attrs)
             features.append(fet)
-            i += 1
-            progressDialog.setValue(i)
-            progressDialog.setLabelText(
-                "Importing feature {} of {}".format(i, total))
+            progressDialog.setValue(i + 1)
+            progressDialog.setLabelText("Importing feature {} of {}".format(i + 1, total))
             QCoreApplication.processEvents()
 
         layer.addFeatures(features)
@@ -366,72 +395,80 @@ class Triple2Layer:
             level=Qgis.Success, duration=3)
         
 
-    def check_if_imported_layer (self):
+    def check_if_imported_layer(self) -> None:
+        """Display a warning message in the QGIS message bar if the import failed."""
         self.iface.messageBar().clearWidgets()
-        if self.erroOnLoadLayer == True:
+        if self.erroOnLoadLayer:
             self.iface.messageBar().pushMessage(
-            "Fail", self.errorMessage,
-            level=Qgis.Warning, duration=3)
+                "Import failed", self.errorMessage,
+                level=Qgis.Warning, duration=5)
             
 
 
-    def import_from_dataworld(self):
-
+    def import_from_dataworld(self) -> None:
+        """Start an asynchronous task to import data from a Data.world dataset."""
         if "DW_AUTH_TOKEN" not in os.environ:
             self.iface.messageBar().pushMessage(
-                "Ooops", "Token not defined",
-                level=Qgis.Info, duration=3
+                "Authentication required", "Data.world token not set. Please enter your API token.",
+                level=Qgis.Warning, duration=5
             )
             self.set_token()
         else:
-            QgsMessageLog.logMessage('criando tarefa.', 'Triple2Layer')
-            self.task = QgsTask.fromFunction('Importing a layer', self.load_data_world, on_finished=partial(self.create_layer, 'dw'))
+            QgsMessageLog.logMessage('Creating Data.world import task...', 'Triple2Layer')
+            self.task = QgsTask.fromFunction(
+                'Importing a layer', self.load_data_world,
+                on_finished=partial(self.create_layer, 'dw'))
             self.task.taskCompleted.connect(self.check_if_imported_layer)
             QgsApplication.taskManager().addTask(self.task)
 
-    def save_endpoint(self):
-        caminho = self.buscapath()
+    def save_endpoint(self) -> None:
+        """Persist the current endpoint URL to the endpoint configuration file."""
+        path = self.get_endpoint_path()
         source = self.dlg.comboSourceType.currentText()
         try:
-            with open(caminho, "r") as arquivo:
-                endpoints = json.load(arquivo)
+            with open(path, "r") as f:
+                endpoints = json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
             endpoints = {}
 
-        url_ds = self.dlg.lineEndpoint.text()
-        endpoints[source] = url_ds
+        endpoints[source] = self.dlg.lineEndpoint.text()
 
         try:
-            with open(caminho, "w") as arquivo:
-                json.dump(endpoints, arquivo)
+            with open(path, "w") as f:
+                json.dump(endpoints, f)
         except IOError as e:
             QgsMessageLog.logMessage(
                 f'Could not save endpoint configuration: {e}', 'Triple2Layer', level=Qgis.Warning)
 
-    def endpoint_defaut(self):
-        caminho = self.buscapath()
+    def endpoint_defaut(self) -> None:
+        """Load the last used endpoint URL for the selected source type."""
+        path = self.get_endpoint_path()
         source = self.dlg.comboSourceType.currentText()
         try:
-            with open(caminho, "r") as arquivo:
-                endpoints = json.load(arquivo)
-            endpoint = endpoints[source]
-            self.dlg.lineEndpoint.setText(endpoint)
+            with open(path, "r") as f:
+                endpoints = json.load(f)
+            self.dlg.lineEndpoint.setText(endpoints[source])
         except (FileNotFoundError, json.JSONDecodeError, KeyError):
             self.dlg.lineEndpoint.setText("")
 
-    def buscapath(self):
-        path_plugin = os.path.dirname(__file__)
-        path_file = os.path.join(path_plugin, "endpoint.json")
-        return path_file
+    def get_endpoint_path(self) -> str:
+        """Return the path to the endpoint configuration JSON file.
 
-    def import_from_triple(self):
-        QgsMessageLog.logMessage('criando tarefa.', 'Triple2Layer')
+        Returns:
+            Absolute path to endpoint.json inside the plugin directory.
+        """
+        return os.path.join(os.path.dirname(__file__), "endpoint.json")
+
+    def import_from_triple(self) -> None:
+        """Start an asynchronous task to import data from a SPARQL triple store."""
+        QgsMessageLog.logMessage('Creating triple store import task...', 'Triple2Layer')
         self.task = QgsTask.fromFunction(
             'Importing a layer', self.load_triple_store, on_finished=partial(self.create_layer, 'triple'))
         self.task.taskCompleted.connect(self.check_if_imported_layer)
         QgsApplication.taskManager().addTask(self.task)
 
-    def import_layer(self):
+    def import_layer(self) -> None:
+        """Route the import to the correct data source based on the user's selection."""
 
         self.erroOnLoadLayer = False
 
@@ -448,7 +485,8 @@ class Triple2Layer:
         else:
             self.import_from_dataworld()
 
-    def open_sparql(self):
+    def open_sparql(self) -> None:
+        """Open a file dialog to select a SPARQL query file and populate the attribute table."""
         self.file_name = str(QFileDialog.getOpenFileName(
             caption="Defining input file", filter="SPARQL(*.sparql)")[0])
         self.dlg.lineSPARQL.setText(self.file_name)
@@ -465,19 +503,23 @@ class Triple2Layer:
             QgsMessageLog.logMessage(
                 f'Could not read SPARQL file: {e}', 'Triple2Layer', level=Qgis.Warning)
 
-    def geo_selected (self,row, state):
-        #self.dlg.tableAttributes.
+    def geo_selected(self, row: int, state: int) -> None:
+        """Enable or disable attribute name/type fields when a geometry column is selected.
+
+        Args:
+            row: The table row index of the checkbox that changed.
+            state: The new checkbox state (Qt.Checked or Qt.Unchecked).
+        """
         w1 = self.dlg.tableAttributes.cellWidget(row, 4)
         w2 = self.dlg.tableAttributes.cellWidget(row, 5)
-        if state == QtCore.Qt.Checked:
+        if state == Qt.Checked:
             w1.setEnabled(False)
-            w2.setEnabled(False)  
+            w2.setEnabled(False)
             self.dlg.pushButton.setEnabled(True)
         else:
             w1.setEnabled(True)
             w2.setEnabled(True)
             self.dlg.pushButton.setEnabled(False)
-        print (state)
         
 
     def fill_table(self, s):
@@ -534,5 +576,6 @@ class Triple2Layer:
             comboBox.addItem("Double")
             self.dlg.tableAttributes.setCellWidget(i, 5, comboBox)
 
-    def close(self):
+    def close(self) -> None:
+        """Hide the plugin dialog without destroying it."""
         self.dlg.setVisible(False)
