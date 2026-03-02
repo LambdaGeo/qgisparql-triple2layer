@@ -8,8 +8,8 @@
                               -------------------
         begin                : 2023-01-22
         git sha              : $Format:%H$
-        copyright            : (C) 2023 by Nerval Junior 
-        email                : nerval1@hotmail.com
+        copyright            : (C) 2023 by Sérgio Souza Costa, Nerval Junior 
+        email                : sergio.costa@ufma.br, nerval1@hotmail.com
  ***************************************************************************/
 
 /***************************************************************************
@@ -20,6 +20,7 @@
  *   (at your option) any later version.                                   *
  *                                                                         *
  ***************************************************************************/
+
 """
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication, QVariant, Qt
 from qgis.PyQt.QtGui import QIcon
@@ -194,7 +195,7 @@ class Triple2Layer:
             if hasattr(self.dlg, 'lineLayer'):
                 self.dlg.lineLayer.clear()
                 self.dlg.lineSPARQL.clear()
-                
+
             if hasattr(self.dlg, 'tableAttributes'):
                 self.dlg.tableAttributes.setRowCount(0)
                 
