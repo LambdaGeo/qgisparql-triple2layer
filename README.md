@@ -2,9 +2,8 @@
 
 # Triple2Layer
 
-Status badge code:
  [![status](https://joss.theoj.org/papers/6a9a1eff32b69c18a8a6d42e76bd60c8/status.svg)](https://joss.theoj.org/papers/6a9a1eff32b69c18a8a6d42e76bd60c8)
-Author instructions
+
 
 A QGIS plugin to import geographic data from SPARQL endpoints and linked data repositories into QGIS vector layers.
 
