@@ -12,8 +12,17 @@ authors:
     orcid: 0000-0002-0232-4549
     affiliation: "1"
   - name: Nerval de Jesus Santos Junior
-    orcid: 0009-0000-2339-3191
     affiliation: "1"
+    orcid: 0009-0000-2339-3191
+  - name: Felipe Martins Sousa
+    affiliation: "1"
+    orcid: 0009-0009-0505-4845
+  - name: José Magno Pinheiro Alves
+    affiliation: "1"
+    orcid: 0009-0003-7212-4870
+  - name: Denilson da Silva Bezerra
+    affiliation: "1"
+    orcid: 0000-0002-9567-7828
 affiliations:
   - name: Universidade Federal do Maranhão (UFMA), Brazil
     index: "1"
