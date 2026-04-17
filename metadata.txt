@@ -1,5 +1,5 @@
 [general]
-name=QGISSPARQL
+name=qgissparql
 qgisMinimumVersion=3.10
 description=Unified plugin for bidirectional SPARQL/RDF and QGIS Layer integration.
 version=1.0.0
@@ -8,6 +8,7 @@ email=sergio.costa@ufma.br
 about=Bidirectional integration between GIS and Linked Data. Imports data from SPARQL endpoints to QGIS layers and exports QGIS layers to RDF triples (GeoSPARQL).
 tracker=https://github.com/LambdaGeo/qgissparql/issues
 repository=https://github.com/LambdaGeo/qgissparql
+homepage=https://github.com/LambdaGeo/qgissparql
 tags=sparql, rdf, linked data, geosparql, wkt, semantic web, database, open data
 category=Vector
 icon=icon.png
