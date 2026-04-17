@@ -1,40 +1,15 @@
-# This file contains metadata for your plugin.
-# This file should be included when you package your plugin.
-
 [general]
-name=Triple2Layer
-qgisMinimumVersion=3.4
-description=Import geographic data from SPARQL endpoints and data.world into QGIS vector layers.
-version=0.2.1
-author=Sérgio Costa
+name=QGISSparql
+qgisMinimumVersion=3.10
+description=Unified plugin for SPARQL/RDF and QGIS Layer conversion.
+version=1.0.0
+author=Sergio Costa
 email=sergio.costa@ufma.br
-
-maintainer=Sérgio Costa
-maintainerEmail=sergio.costa@ufma.br
-
-about=Triple2Layer bridges the gap between the Semantic Web and GIS by allowing users to execute SPARQL queries and import results as native QGIS layers (Points, Lines, Polygons) from WKT data.
-
-tracker=https://github.com/LambdaGeo/qgisparql-triple2layer/issues
-repository=https://github.com/LambdaGeo/qgisparql-triple2layer.git
-
-# Recommended items:
-hasProcessingProvider=no
-
-# Changelog
-changelog=v0.2.1: Major refactoring for JOSS submission. Added asynchronous tasks (QgsTask), dynamic geometry detection, CRS selection, and improved error handling.
-
-# Tags are comma separated with spaces allowed
+about=Imports data from SPARQL endpoints to QGIS layers and exports QGIS layers to RDF triples.
+tracker=https://github.com/LambdaGeo/qgisparql-unified/issues
+repository=https://github.com/LambdaGeo/qgisparql-unified
 tags=sparql, rdf, linked data, geosparql, wkt, semantic web, database
-
-homepage=https://github.com/LambdaGeo/qgisparql-triple2layer
 category=Vector
 icon=icon.png
-
-# Experimental flag - Set to False for stable scientific submission
 experimental=False
-
-# Deprecated flag
 deprecated=False
-
-# If the plugin can run on QGIS Server.
-server=False
