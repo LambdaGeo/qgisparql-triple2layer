@@ -108,16 +108,20 @@ class SparqlDockWidget(QDockWidget):
         self.setWidget(self.main_container)
 
     def setup_import_tab(self):
+        settings = QSettings()
         layout = QVBoxLayout(self.tab_import)
+        
         layout.addWidget(QLabel("Source Type:"))
         self.import_source_type = QComboBox()
         self.import_source_type.addItems(["SPARQL Endpoint", "data.world"])
+        saved_source_type = settings.value("qgissparql/import_source_type", "SPARQL Endpoint")
+        self.import_source_type.setCurrentText(saved_source_type)
         self.import_source_type.currentTextChanged.connect(self.on_source_type_changed)
         layout.addWidget(self.import_source_type)
 
-        self.lbl_source = QLabel("SPARQL Endpoint URL:")
+        self.lbl_source = QLabel("SPARQL Endpoint URL:" if saved_source_type == "SPARQL Endpoint" else "Dataset ID (owner/id):")
         layout.addWidget(self.lbl_source)
-        self.import_source_url = QLineEdit("https://dbpedia.org/sparql")
+        self.import_source_url = QLineEdit(settings.value("qgissparql/import_source_url", "https://dbpedia.org/sparql"))
         layout.addWidget(self.import_source_url)
         
         # data.world token container
@@ -132,7 +136,6 @@ class SparqlDockWidget(QDockWidget):
         self.import_token = QLineEdit()
         self.import_token.setEchoMode(QLineEdit.Password)
         self.import_token.setPlaceholderText("Paste your API token here")
-        settings = QSettings()
         self.import_token.setText(settings.value("qgissparql/dw_token", ""))
         token_input_layout.addWidget(self.import_token)
         
@@ -142,7 +145,8 @@ class SparqlDockWidget(QDockWidget):
         
         token_layout.addLayout(token_input_layout)
         layout.addWidget(self.token_container)
-        self.token_container.hide()
+        if saved_source_type != "data.world":
+            self.token_container.hide()
 
         self.import_query = QTextEdit()
         self.import_query.setAcceptRichText(False)
@@ -151,16 +155,17 @@ class SparqlDockWidget(QDockWidget):
         mono_font.setPointSize(10)
         self.import_query.setFont(mono_font)
         
-        self.import_query.setPlainText("SELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 10")
+        default_query = "SELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 10" if saved_source_type == "SPARQL Endpoint" else "SELECT * FROM tables"
+        self.import_query.setPlainText(settings.value("qgissparql/import_query", default_query))
         self.import_query.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         layout.addWidget(self.import_query)
         
         layout.addWidget(QLabel("Geometry Variable (if any):"))
-        self.import_geom_col = QLineEdit("geom")
+        self.import_geom_col = QLineEdit(settings.value("qgissparql/import_geom_col", "geom"))
         layout.addWidget(self.import_geom_col)
 
         layout.addWidget(QLabel("Output Layer Name:"))
-        self.import_layer_name = QLineEdit("SPARQL_Layer")
+        self.import_layer_name = QLineEdit(settings.value("qgissparql/import_layer_name", "SPARQL_Layer"))
         layout.addWidget(self.import_layer_name)
         
         self.btn_import = QPushButton("Execute Import")
@@ -208,13 +213,20 @@ class SparqlDockWidget(QDockWidget):
         geom_col = self.import_geom_col.text().strip()
         layer_name = self.import_layer_name.text().strip()
         
+        # Save settings for next time
+        settings = QSettings()
+        settings.setValue("qgissparql/import_source_type", source_type)
+        settings.setValue("qgissparql/import_source_url", source_val)
+        settings.setValue("qgissparql/import_query", query)
+        settings.setValue("qgissparql/import_geom_col", geom_col)
+        settings.setValue("qgissparql/import_layer_name", layer_name)
+
         if source_type == "data.world":
             token = self.import_token.text().strip()
             if not token:
                 self.iface.messageBar().pushMessage("Error", "data.world API Token is required.", level=Qgis.Critical)
                 return
             # Auto-save token on execution if not empty and update client
-            settings = QSettings()
             settings.setValue("qgissparql/dw_token", token)
             self.sparql_client.set_token(token)
 
