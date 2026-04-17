@@ -10,6 +10,7 @@ from qgis.PyQt.QtWidgets import (
     QTableWidget, QTableWidgetItem, QHeaderView, QInputDialog
 )
 from qgis.PyQt.QtCore import Qt, QVariant, QSettings
+from qgis.PyQt.QtGui import QFont, QFontDatabase
 from qgis.core import Qgis, QgsMessageLog, QgsProject, QgsTask, QgsApplication, QgsMapLayerProxyModel, QgsVectorLayer
 from qgis.gui import QgsMapLayerComboBox
 
@@ -85,6 +86,12 @@ class SparqlDockWidget(QDockWidget):
         self.rdf_converter = RDFConverter()
         self.vocab_properties = ["Select URI...", "http://purl.org/linked-data/cube#measureType", "http://purl.org/linked-data/cube#dataSet"]
 
+        # Pre-load saved data.world token into client
+        settings = QSettings()
+        token = settings.value("qgissparql/dw_token", "")
+        if token:
+            self.sparql_client.set_token(token)
+
         self.setup_ui()
 
     def setup_ui(self):
@@ -113,17 +120,37 @@ class SparqlDockWidget(QDockWidget):
         self.import_source_url = QLineEdit("https://dbpedia.org/sparql")
         layout.addWidget(self.import_source_url)
         
+        # data.world token container
+        self.token_container = QWidget()
+        token_layout = QVBoxLayout(self.token_container)
+        token_layout.setContentsMargins(0, 0, 0, 0)
+        
         self.lbl_token = QLabel("data.world API Token:")
+        token_layout.addWidget(self.lbl_token)
+        
+        token_input_layout = QHBoxLayout()
         self.import_token = QLineEdit()
         self.import_token.setEchoMode(QLineEdit.Password)
+        self.import_token.setPlaceholderText("Paste your API token here")
         settings = QSettings()
         self.import_token.setText(settings.value("qgissparql/dw_token", ""))
-        layout.addWidget(self.lbl_token)
-        layout.addWidget(self.import_token)
-        self.lbl_token.hide()
-        self.import_token.hide()
+        token_input_layout.addWidget(self.import_token)
+        
+        self.btn_save_token = QPushButton("Save Token")
+        self.btn_save_token.clicked.connect(self.save_dw_token)
+        token_input_layout.addWidget(self.btn_save_token)
+        
+        token_layout.addLayout(token_input_layout)
+        layout.addWidget(self.token_container)
+        self.token_container.hide()
 
         self.import_query = QTextEdit()
+        self.import_query.setAcceptRichText(False)
+        self.import_query.setLineWrapMode(QTextEdit.NoWrap)
+        mono_font = QFontDatabase.systemFont(QFontDatabase.FixedFont)
+        mono_font.setPointSize(10)
+        self.import_query.setFont(mono_font)
+        
         self.import_query.setPlainText("SELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 10")
         self.import_query.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         layout.addWidget(self.import_query)
@@ -142,19 +169,37 @@ class SparqlDockWidget(QDockWidget):
         layout.addWidget(self.btn_import)
         layout.addStretch()
 
+    def save_dw_token(self):
+        token = self.import_token.text().strip()
+        if not token:
+            self.iface.messageBar().pushMessage("Warning", "Token is empty.", level=Qgis.Warning)
+            return
+        settings = QSettings()
+        settings.setValue("qgissparql/dw_token", token)
+        self.sparql_client.set_token(token) # Immediate update to client
+        self.iface.messageBar().pushMessage("Success", "data.world token saved and activated.", level=Qgis.Success)
+
     def on_source_type_changed(self, source_type):
+        current_query = self.import_query.toPlainText().strip()
+        # Only overwrite if the current query is one of the defaults or empty
+        is_default = current_query in [
+            "SELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 10",
+            "SELECT * FROM tables",
+            ""
+        ]
+
         if source_type == "data.world":
             self.lbl_source.setText("Dataset ID (owner/id):")
-            self.lbl_token.show()
-            self.import_token.show()
+            self.token_container.show()
             self.import_source_url.setPlaceholderText("e.g. user/dataset")
-            self.import_query.setPlainText("SELECT * FROM tables")
+            if is_default:
+                self.import_query.setPlainText("SELECT * FROM tables")
         else:
             self.lbl_source.setText("SPARQL Endpoint URL:")
-            self.lbl_token.hide()
-            self.import_token.hide()
+            self.token_container.hide()
             self.import_source_url.setPlaceholderText("")
-            self.import_query.setPlainText("SELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 10")
+            if is_default:
+                self.import_query.setPlainText("SELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 10")
 
     def execute_import(self):
         source_type = self.import_source_type.currentText()
@@ -162,6 +207,17 @@ class SparqlDockWidget(QDockWidget):
         query = self.import_query.toPlainText().strip()
         geom_col = self.import_geom_col.text().strip()
         layer_name = self.import_layer_name.text().strip()
+        
+        if source_type == "data.world":
+            token = self.import_token.text().strip()
+            if not token:
+                self.iface.messageBar().pushMessage("Error", "data.world API Token is required.", level=Qgis.Critical)
+                return
+            # Auto-save token on execution if not empty and update client
+            settings = QSettings()
+            settings.setValue("qgissparql/dw_token", token)
+            self.sparql_client.set_token(token)
+
         if not source_val or not query or not layer_name:
             self.iface.messageBar().pushMessage("Error", "Fill required fields.", level=Qgis.Warning)
             return
