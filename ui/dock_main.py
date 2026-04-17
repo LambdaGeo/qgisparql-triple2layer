@@ -7,7 +7,7 @@ from rdflib import Graph, Namespace
 from qgis.PyQt.QtWidgets import (
     QDockWidget, QTabWidget, QWidget, QVBoxLayout, QHBoxLayout, 
     QLabel, QLineEdit, QTextEdit, QPushButton, QComboBox, QFileDialog, QSizePolicy,
-    QTableWidget, QTableWidgetItem, QHeaderView, QInputDialog
+    QTableWidget, QTableWidgetItem, QHeaderView, QInputDialog, QCompleter
 )
 from qgis.PyQt.QtCore import Qt, QVariant, QSettings
 from qgis.PyQt.QtGui import QFont, QFontDatabase
@@ -335,6 +335,13 @@ class SparqlDockWidget(QDockWidget):
             combo_uri = QComboBox()
             combo_uri.setEditable(True)
             combo_uri.addItems(self.vocab_properties)
+            
+            # Add search capability with QCompleter
+            completer = QCompleter(self.vocab_properties)
+            completer.setCaseSensitivity(Qt.CaseInsensitive)
+            completer.setFilterMode(Qt.MatchContains)
+            combo_uri.setCompleter(completer)
+            
             self.export_mapping_table.setCellWidget(row, 2, combo_uri)
         elif map_type == "None":
             le = QLineEdit()
@@ -386,6 +393,13 @@ class SparqlDockWidget(QDockWidget):
                 current = widget.currentText()
                 widget.clear()
                 widget.addItems(self.vocab_properties)
+                
+                # Update completer as well
+                completer = QCompleter(self.vocab_properties)
+                completer.setCaseSensitivity(Qt.CaseInsensitive)
+                completer.setFilterMode(Qt.MatchContains)
+                widget.setCompleter(completer)
+                
                 if current in self.vocab_properties: widget.setCurrentText(current)
 
     def load_vocabulary_dialog(self):
