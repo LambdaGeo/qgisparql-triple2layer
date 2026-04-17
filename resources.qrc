@@ -1,5 +1,0 @@
-<RCC>
-    <qresource prefix="/plugins/Triple2Layer" >
-        <file>icon.png</file>
-    </qresource>
-</RCC>

@@ -1,5 +1,5 @@
 ---
-title: 'Triple2Layer: A QGIS Plugin for Importing Linked Geographic Data'
+title: 'QGISSPARQL: Bidirectional Integration between Linked Data and Geographic Information Systems'
 tags:
   - Python
   - QGIS
@@ -30,39 +30,73 @@ date: 2 March 2026
 bibliography: paper.bib
 ---
 
+
 ## Summary
 
-Geographic Information Systems (GIS) handle a vast amount of data that can greatly benefit from the Linked Data paradigm, which connects data from various repositories to promote reuse and interoperability [@qgissparql_2023; @isotani2015]. However, researchers often face a bottleneck when trying to consume Resource Description Framework (RDF) data directly within traditional GIS software. Historically, retrieving spatial data from Semantic Web repositories required users to write complex custom scripts [@garcia2019]. 
+Geographic Information Systems (GIS) handle a vast amount of spatial data that can benefit from the Linked Data paradigm, which promotes interoperability and reuse across distributed repositories [@qgissparql_2023; @isotani2015]. However, integrating Resource Description Framework (RDF) data with traditional GIS tools remains challenging, often requiring custom scripts and technical expertise [@garcia2019; @nerval2023].
 
-`Triple2Layer` is an open-source QGIS plugin—part of the QGISSPARQL toolset—designed to bridge this gap. It allows users to execute SPARQL queries and import the results as native QGIS vector layers directly through a graphical interface, eliminating the need for programming skills. The plugin supports standard SPARQL 1.1 endpoints (Triple Stores) and the `data.world` platform, providing a streamlined workflow for visualizing and analyzing linked geographic data [@qgissparql_2023; @silva2023].
+**QGISSPARQL** is an open-source QGIS plugin that enables **bidirectional integration between GIS and Linked Data**. It allows users to both: (i) execute SPARQL queries and import RDF data as native QGIS vector layers, and (ii) export geospatial layers into RDF triples compliant with Semantic Web standards such as GeoSPARQL [@perry2011] and the RDF Data Cube Vocabulary [@silva2023].
+
+By combining these capabilities into a unified environment, QGISSPARQL provides an end-to-end workflow for consuming and publishing linked geographic data directly within QGIS, eliminating the need for intermediate transformations or programming.
 
 ## Statement of Need
 
-Despite the growth of standards like OGC-GeoSPARQL [@perry2011] for representing spatial data on the Semantic Web, most GIS tools still lack native and user-friendly support for direct SPARQL querying. Current workflows often require researchers to manually download tabular results and convert them into compatible geographic formats. 
+Despite the increasing adoption of standards such as OGC GeoSPARQL [@perry2011] for representing spatial data on the Semantic Web, most GIS tools still lack native and user-friendly support for SPARQL-based workflows. Existing approaches are typically fragmented, requiring separate tools or manual steps for importing and exporting data.
 
-`Triple2Layer` addresses these challenges by offering:
-1. **Direct Integration:** Connecting QGIS directly to RDF repositories (e.g., Virtuoso, Apache Jena Fuseki) and the data.world portal via HTTP endpoints [@silva2023; @nerval2023].
-2. **Dynamic Attribute Mapping:** Providing an interactive table where users can map SPARQL query variables to GIS attributes. Users can define which variable holds the geometry (using Well-Known Text - WKT format), specify the primary key/identifier, and cast attribute types (String, Integer, Double) before importing [@nerval2023; @silva2023].
+Current workflows often involve exporting query results as tabular files (e.g., CSV), followed by manual conversion into geographic formats. Conversely, publishing GIS data as RDF frequently requires scripting and prior knowledge of Semantic Web technologies.
 
-This tool is particularly relevant for researchers working with Linked Open Data (LOD) in fields such as environmental monitoring and land use/land cover change models. For instance, `Triple2Layer` is currently being used within the DBCells project [@costa2017] to successfully load and map millions of geographic triples representing Brazilian biomes and land cover variables back into QGIS for spatial analysis [@qgissparql_2023].
+QGISSPARQL addresses these limitations by providing:
 
-## State of the field
+1. **Direct Integration:** Seamless connection between QGIS and RDF repositories (e.g., Virtuoso, Apache Jena Fuseki, and data.world) through SPARQL endpoints.
+2. **Bidirectional Workflow:** Support for both importing RDF data into GIS and exporting GIS layers as RDF triples.
+3. **User-Friendly Mapping:** Interactive interfaces for mapping SPARQL query variables to GIS attributes and associating GIS attributes with RDF vocabularies.
 
-While there are existing efforts to bridge GIS and the Semantic Web, many are either standalone libraries or require significant technical expertise. Standard QGIS does not provide a native SPARQL connector. Some experimental plugins have attempted basic RDF support, but often lack the ability to handle complex GeoSPARQL geometries or dynamic attribute casting. 
+This unified approach reduces technical barriers and enables researchers to fully leverage Linked Open Data within spatial analysis workflows.
 
-Compared to manual workflows (e.g., exporting CSVs from a Triple Store and re-importing them into QGIS), `Triple2Layer` automates the entire pipeline. It differs from tools like **GeoTriples**, which focuses on *generating* RDF from GIS data, by focusing on the *consumption* of RDF data, making it a critical tool for end-user spatial analysis of existing Linked Data repositories.
+## State of the Field
+
+Several efforts have attempted to bridge GIS and the Semantic Web. Tools such as GeoTriples [@geotriples] focus on generating RDF from geospatial data, while other approaches provide libraries or scripts for querying SPARQL endpoints. However, these solutions are typically unidirectional or require significant technical expertise.
+
+Standard QGIS installations do not provide native support for SPARQL querying or RDF export. Existing plugins and tools often lack support for GeoSPARQL geometries or dynamic attribute mapping.
+
+QGISSPARQL differs from these approaches by providing a **fully integrated, bidirectional workflow** within a single environment. It enables both the consumption and publication of Linked Data, eliminating the need for external tools or intermediate formats.
 
 ## Software Design
 
-`Triple2Layer` is implemented in Python [@nerval2023] and leverages the following architecture:
-- **Core Engine:** Utilizes the `SPARQLWrapper` library for standard endpoint communication and the `datadotworld` SDK for direct integration with the data.world ecosystem.
-- **Geometry Parser:** Leverages the QGIS API to transform Well-Known Text (WKT) strings retrieved from SPARQL queries into native QGIS points, lines, or polygons.
-- **UI Module:** Built using `PyQt` (QtDesigner), offering an intuitive configuration menu for attribute mapping and credential management [@qgissparql_2023].
-- **Data Mapper:** A specialized component that allows the user to cast RDF datatypes to GIS field types (Integer, Double, String) during the import process to ensure data integrity.
+QGISSPARQL is implemented in Python and leverages PyQGIS and PyQt for integration with the QGIS environment. Its architecture is organized into modular components that separate user interface and core logic.
 
-## Research impact statement
+The plugin integrates two main functionalities:
 
-`Triple2Layer` empowers researchers in the Geosciences to interact with the growing body of Linked Open Data without leaving their primary analytical tool. By lowering the technical barrier to accessing GeoSPARQL data, it facilitates the reuse of massive datasets like those hosted by the **LambdaGeo** group and other international repositories. This plugin has been essential for the DBCells project [@costa2017], enabling the visualization of large-scale environmental datasets that were previously locked in Triple Stores.
+### Importing RDF Data (Triple → Layer)
+
+* Executes SPARQL queries against standard endpoints.
+* Supports integration with platforms such as data.world.
+* Maps query variables to GIS attributes.
+* Converts Well-Known Text (WKT) geometries into native QGIS geometries.
+
+### Exporting GIS Data (Layer → Triple)
+
+* Converts vector layers (points, lines, polygons) into RDF triples.
+* Supports Turtle serialization.
+* Allows loading and use of RDF vocabularies (e.g., GeoSPARQL, SKOS, Data Cube).
+* Provides strategies for URI generation (UUID or attribute-based).
+* Maps GIS attributes to RDF properties.
+
+### Architecture
+
+* **Core Modules:** Handle SPARQL communication, RDF parsing, and data transformation.
+* **UI Modules:** Provide interactive interfaces for configuration and mapping.
+* **Data Mapping Layer:** Bridges GIS attributes and RDF vocabularies.
+
+This modular design ensures extensibility and maintainability, allowing future enhancements such as direct publishing to triple stores or additional serialization formats.
+
+## Research Impact Statement
+
+QGISSPARQL enables researchers in Geosciences to interact seamlessly with Linked Open Data ecosystems without leaving their primary analytical environment. By supporting both data consumption and publication, it closes the loop between GIS and Semantic Web technologies.
+
+The plugin has been successfully used within the DBCells project [@costa2017], supporting the publication and visualization of large-scale environmental datasets. More than 2.5 million RDF triples representing land use and environmental variables have been generated and integrated using this approach [@qgissparql_2023; @react2025].
+
+By lowering the technical barrier to Linked Data adoption, QGISSPARQL contributes to reproducibility, interoperability, and data reuse in spatial analysis workflows.
 
 ## Acknowledgements
 
@@ -70,6 +104,6 @@ The authors acknowledge the support from the LambdaGeo Research Group at the Uni
 
 ## AI usage disclosure
 
-This submission used generative AI tools (Claude Sonnet 4.6 and NotebookLM) to assist with structuring documentation and synthesizing prior work. All outputs were reviewed and validated by the human authors.
+This submission used generative AI tools to assist with structuring and refining the manuscript. All content was reviewed and validated by the authors.
 
 ## References

@@ -1,21 +1,32 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 type: software
-title: "Triple2Layer: A QGIS Plugin for Importing Linked Geographic Data"
+title: "QGISSPARQL: Bidirectional Integration between Linked Data and Geographic Information Systems"
 authors:
   - family-names: "Souza Costa"
     given-names: "Sérgio"
     orcid: "0000-0002-0232-4549"
     email: sergio.costa@ufma.br
     affiliation: "Universidade Federal do Maranhão (UFMA)"
-  - family-names: "Junior"
-    given-names: "Nerval"
-    orcid: 0009-0000-2339-3191
-    email: nerval1@hotmail.com
-    affiliation: "Universidade Federal o Maranhão (UFMA)"
-repository-code: "https://github.com/LambdaGeo/qgisparql-triple2layer"
-license: GPL-2.0
-version: "0.2.1"
+  - family-names: "Santos Junior"
+    given-names: "Nerval de Jesus"
+    orcid: "0009-0000-2339-3191"
+    affiliation: "Universidade Federal do Maranhão (UFMA)"
+  - family-names: "Sousa"
+    given-names: "Felipe Martins"
+    orcid: "0009-0009-0505-4845"
+    affiliation: "Universidade Federal do Maranhão (UFMA)"
+  - family-names: "Alves"
+    given-names: "José Magno Pinheiro"
+    orcid: "0009-0003-7212-4870"
+    affiliation: "Universidade Federal do Maranhão (UFMA)"
+  - family-names: "Bezerra"
+    given-names: "Denilson da Silva"
+    orcid: "0000-0002-9567-7828"
+    affiliation: "Universidade Federal do Maranhão (UFMA)"
+repository-code: "https://github.com/LambdaGeo/qgissparql"
+license: MIT
+version: "1.0.0"
 date-released: "2026-03-02"
 keywords:
   - QGIS
