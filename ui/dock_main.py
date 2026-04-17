@@ -325,12 +325,17 @@ class SparqlDockWidget(QDockWidget):
                 # Captura row=i no momento da definição
                 combo_type.currentTextChanged.connect(lambda _, row=i: self.on_mapping_type_changed(row))
                 self.export_mapping_table.setCellWidget(i, 1, combo_type)
-                self.export_mapping_table.setCellWidget(i, 2, QLineEdit())
+                # Initialize column 2 based on default "Auto"
+                self.on_mapping_type_changed(i)
 
     def on_mapping_type_changed(self, row):
         combo_type = self.export_mapping_table.cellWidget(row, 1)
         if not combo_type: return
         map_type = combo_type.currentText()
+        
+        field_name = self.export_mapping_table.item(row, 0).text()
+        base_namespace = self.export_namespace.text().strip()
+
         if map_type == "Vocabulary":
             combo_uri = QComboBox()
             combo_uri.setEditable(True)
@@ -346,6 +351,12 @@ class SparqlDockWidget(QDockWidget):
         elif map_type == "None":
             le = QLineEdit()
             le.setPlaceholderText("(not mapped)")
+            le.setEnabled(False)
+            self.export_mapping_table.setCellWidget(row, 2, le)
+        elif map_type == "Auto":
+            le = QLineEdit()
+            # Show preview of what Auto will generate
+            le.setPlaceholderText(f"auto: {base_namespace}{field_name}")
             le.setEnabled(False)
             self.export_mapping_table.setCellWidget(row, 2, le)
         else:
